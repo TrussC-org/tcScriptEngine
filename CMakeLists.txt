@@ -9,3 +9,14 @@ endif()
 include(${TRUSSC_DIR}/cmake/trussc_app.cmake)
 
 trussc_app()
+
+# ChaiScript requires exceptions
+if(EMSCRIPTEN)
+    target_compile_options(${PROJECT_NAME} PRIVATE -fexceptions)
+    target_link_options(${PROJECT_NAME} PRIVATE -fexceptions)
+    # Export functions for JS interop
+    target_link_options(${PROJECT_NAME} PRIVATE
+        -sEXPORTED_FUNCTIONS=['_main','_updateScriptCode','_getScriptError']
+        -sEXPORTED_RUNTIME_METHODS=['ccall','cwrap']
+    )
+endif()

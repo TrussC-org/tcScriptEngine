@@ -4,6 +4,11 @@
       "configurePreset": "macos",
       "jobs": 4,
       "name": "macos"
+    },
+    {
+      "configurePreset": "web",
+      "jobs": 4,
+      "name": "web"
     }
   ],
   "configurePresets": [
@@ -16,6 +21,17 @@
       "displayName": "macOS",
       "generator": "Unix Makefiles",
       "name": "macos"
+    },
+    {
+      "binaryDir": "${sourceDir}/build-web",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "TRUSSC_DIR": "/Users/toru/Nextcloud/Make/TrussC/tc_v0.0.1/trussc"
+      },
+      "displayName": "Web (Emscripten)",
+      "generator": "Unix Makefiles",
+      "name": "web",
+      "toolchainFile": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake"
     }
   ],
   "version": 6
