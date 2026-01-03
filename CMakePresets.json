@@ -16,7 +16,7 @@
       "binaryDir": "${sourceDir}/build-macos",
       "cacheVariables": {
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "TRUSSC_DIR": "/Users/toru/Nextcloud/Make/TrussC/tc_v0.0.1/trussc"
+        "TRUSSC_DIR": "/Users/toru/Nextcloud/Make/TrussC/TrussC/trussc"
       },
       "displayName": "macOS",
       "generator": "Unix Makefiles",
@@ -26,7 +26,7 @@
       "binaryDir": "${sourceDir}/build-web",
       "cacheVariables": {
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "TRUSSC_DIR": "/Users/toru/Nextcloud/Make/TrussC/tc_v0.0.1/trussc"
+        "TRUSSC_DIR": "/Users/toru/Nextcloud/Make/TrussC/TrussC/trussc"
       },
       "displayName": "Web (Emscripten)",
       "generator": "Unix Makefiles",
