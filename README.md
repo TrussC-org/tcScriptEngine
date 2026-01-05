@@ -60,8 +60,8 @@ cmake --build .
 ```
 
 Output files will be in `bin/`:
-- `tcScriptEngine.js`
-- `tcScriptEngine.wasm`
+- `TrussSketch.js`
+- `TrussSketch.wasm`
 
 ### Deploy to R2
 
@@ -69,8 +69,8 @@ After building, deploy both files to Cloudflare R2:
 
 ```bash
 cd bin
-wrangler r2 object put trussc-wasm/tcscript/tcScriptEngine.wasm --file tcScriptEngine.wasm --remote
-wrangler r2 object put trussc-wasm/tcscript/tcScriptEngine.js --file tcScriptEngine.js --remote
+wrangler r2 object put trussc-wasm/sketch/TrussSketch.wasm --file TrussSketch.wasm --remote
+wrangler r2 object put trussc-wasm/sketch/TrussSketch.js --file TrussSketch.js --remote
 ```
 
 ### Build for macOS (Development)

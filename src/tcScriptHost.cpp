@@ -296,6 +296,118 @@ void tcScriptHost::bindTrussCFunctions() {
 
     // setColor with Color object
     chai_->add(fun([](const Color& c) { setColor(c.r, c.g, c.b, c.a); }), "setColor");
+
+    // ==========================================================================
+    // Class Bindings - Mesh
+    // ==========================================================================
+    chai_->add(user_type<Mesh>(), "Mesh");
+    chai_->add(constructor<Mesh()>(), "Mesh");
+
+    // Mesh Enums
+    chai_->add_global_const(const_var(PrimitiveMode::Triangles), "MESH_TRIANGLES");
+    chai_->add_global_const(const_var(PrimitiveMode::TriangleStrip), "MESH_TRIANGLE_STRIP");
+    chai_->add_global_const(const_var(PrimitiveMode::TriangleFan), "MESH_TRIANGLE_FAN");
+    chai_->add_global_const(const_var(PrimitiveMode::Lines), "MESH_LINES");
+    chai_->add_global_const(const_var(PrimitiveMode::LineStrip), "MESH_LINE_STRIP");
+    chai_->add_global_const(const_var(PrimitiveMode::LineLoop), "MESH_LINE_LOOP");
+    chai_->add_global_const(const_var(PrimitiveMode::Points), "MESH_POINTS");
+
+    chai_->add(fun(&Mesh::setMode), "setMode");
+    chai_->add(fun(&Mesh::getMode), "getMode");
+
+    chai_->add(fun(static_cast<void(Mesh::*)(float, float, float)>(&Mesh::addVertex)), "addVertex");
+    chai_->add(fun(static_cast<void(Mesh::*)(const Vec3&)>(&Mesh::addVertex)), "addVertex");
+    chai_->add(fun(static_cast<void(Mesh::*)(const Vec2&)>(&Mesh::addVertex)), "addVertex");
+
+    chai_->add(fun(static_cast<void(Mesh::*)(float, float, float, float)>(&Mesh::addColor)), "addColor");
+    chai_->add(fun(static_cast<void(Mesh::*)(const Color&)>(&Mesh::addColor)), "addColor");
+
+    chai_->add(fun(&Mesh::addIndex), "addIndex");
+    chai_->add(fun(&Mesh::addTriangle), "addTriangle");
+
+    chai_->add(fun(static_cast<void(Mesh::*)(float, float, float)>(&Mesh::addNormal)), "addNormal");
+    chai_->add(fun(static_cast<void(Mesh::*)(const Vec3&)>(&Mesh::addNormal)), "addNormal");
+
+    chai_->add(fun(static_cast<void(Mesh::*)(float, float)>(&Mesh::addTexCoord)), "addTexCoord");
+    chai_->add(fun(static_cast<void(Mesh::*)(const Vec2&)>(&Mesh::addTexCoord)), "addTexCoord");
+
+    chai_->add(fun(&Mesh::clear), "clear");
+    chai_->add(fun(static_cast<void(Mesh::*)() const>(&Mesh::draw)), "draw");
+    chai_->add(fun(static_cast<void(Mesh::*)(const Texture&) const>(&Mesh::draw)), "draw");
+
+    chai_->add(fun([](const Mesh& m) { m.draw(); }), "drawMesh");
+
+    // ==========================================================================
+    // Class Bindings - Path (Polyline)
+    // ==========================================================================
+    chai_->add(user_type<Path>(), "Path");
+    chai_->add(user_type<Path>(), "Polyline"); // Alias for Path
+    chai_->add(constructor<Path()>(), "Path");
+    chai_->add(constructor<Path()>(), "Polyline");
+
+    chai_->add(fun(static_cast<void(Path::*)(const Vec3&)>(&Path::addVertex)), "addVertex");
+
+    chai_->add(fun([](Path& p, float x, float y) { p.lineTo(x, y); }), "lineTo");
+    chai_->add(fun([](Path& p, float x, float y, float z) { p.lineTo(x, y, z); }), "lineTo");
+    chai_->add(fun([](Path& p, const Vec2& v) { p.lineTo(v); }), "lineTo");
+    chai_->add(fun([](Path& p, const Vec3& v) { p.lineTo(v); }), "lineTo");
+
+    // Curves
+    chai_->add(fun(static_cast<void(Path::*)(float, float, float, float, float, float, int)>(&Path::bezierTo)), "bezierTo");
+    chai_->add(fun(static_cast<void(Path::*)(const Vec2&, const Vec2&, const Vec2&, int)>(&Path::bezierTo)), "bezierTo");
+    
+    chai_->add(fun(static_cast<void(Path::*)(float, float, float, float, int)>(&Path::quadBezierTo)), "quadBezierTo");
+    chai_->add(fun(static_cast<void(Path::*)(const Vec2&, const Vec2&, int)>(&Path::quadBezierTo)), "quadBezierTo");
+    
+    chai_->add(fun(static_cast<void(Path::*)(float, float, float, int)>(&Path::curveTo)), "curveTo");
+    chai_->add(fun(static_cast<void(Path::*)(const Vec2&, int)>(&Path::curveTo)), "curveTo");
+
+    chai_->add(fun(static_cast<void(Path::*)(float, float, float, float, float, float, int)>(&Path::arc)), "arc");
+    chai_->add(fun(static_cast<void(Path::*)(const Vec2&, float, float, float, float, int)>(&Path::arc)), "arc");
+
+    chai_->add(fun(&Path::close), "close");
+    chai_->add(fun(&Path::setClosed), "setClosed");
+    chai_->add(fun(&Path::isClosed), "isClosed");
+    chai_->add(fun(&Path::clear), "clear");
+    chai_->add(fun(&Path::draw), "draw");
+
+    chai_->add(fun([](const Path& p) { p.draw(); }), "drawPath");
+    chai_->add(fun([](const Path& p) { p.draw(); }), "drawPolyline");
+
+    // ==========================================================================
+    // Class Bindings - StrokeMesh
+    // ==========================================================================
+    chai_->add(user_type<StrokeMesh>(), "StrokeMesh");
+    chai_->add(constructor<StrokeMesh()>(), "StrokeMesh");
+    chai_->add(constructor<StrokeMesh(const Path&)>(), "StrokeMesh");
+
+    // StrokeMesh Enums
+    chai_->add_global_const(const_var(StrokeMesh::CAP_BUTT), "CAP_BUTT");
+    chai_->add_global_const(const_var(StrokeMesh::CAP_ROUND), "CAP_ROUND");
+    chai_->add_global_const(const_var(StrokeMesh::CAP_SQUARE), "CAP_SQUARE");
+    
+    chai_->add_global_const(const_var(StrokeMesh::JOIN_MITER), "JOIN_MITER");
+    chai_->add_global_const(const_var(StrokeMesh::JOIN_ROUND), "JOIN_ROUND");
+    chai_->add_global_const(const_var(StrokeMesh::JOIN_BEVEL), "JOIN_BEVEL");
+
+    chai_->add(fun(&StrokeMesh::setWidth), "setWidth");
+    chai_->add(fun(&StrokeMesh::setColor), "setColor");
+    chai_->add(fun(&StrokeMesh::setCapType), "setCapType");
+    chai_->add(fun(&StrokeMesh::setJoinType), "setJoinType");
+    chai_->add(fun(&StrokeMesh::setMiterLimit), "setMiterLimit");
+
+    chai_->add(fun(static_cast<void(StrokeMesh::*)(float, float, float)>(&StrokeMesh::addVertex)), "addVertex");
+    chai_->add(fun(static_cast<void(StrokeMesh::*)(const Vec3&)>(&StrokeMesh::addVertex)), "addVertex");
+    chai_->add(fun(static_cast<void(StrokeMesh::*)(const Vec2&)>(&StrokeMesh::addVertex)), "addVertex");
+
+    chai_->add(fun(static_cast<void(StrokeMesh::*)(float, float, float)>(&StrokeMesh::addVertexWithWidth)), "addVertexWithWidth");
+    chai_->add(fun(static_cast<void(StrokeMesh::*)(const Vec3&, float)>(&StrokeMesh::addVertexWithWidth)), "addVertexWithWidth");
+
+    chai_->add(fun(&StrokeMesh::setShape), "setShape");
+    chai_->add(fun(&StrokeMesh::setClosed), "setClosed");
+    chai_->add(fun(&StrokeMesh::clear), "clear");
+    chai_->add(fun(&StrokeMesh::update), "update");
+    chai_->add(fun(&StrokeMesh::draw), "draw");
 }
 
 bool tcScriptHost::loadScript(const string& code) {

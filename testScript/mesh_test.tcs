@@ -1,0 +1,96 @@
+// Mesh, Polyline, StrokeMesh Test Script
+
+global myMesh = Mesh()
+global myPath = Polyline()
+global myStroke = StrokeMesh()
+global angle = 0.0
+
+def setup() {
+    logNotice("Setting up Mesh test...")
+
+    // Setup Mesh (colored triangle)
+    myMesh.setMode(MESH_TRIANGLES)
+    myMesh.addVertex(-50, -50, 0)
+    myMesh.addColor(1, 0, 0, 1)
+    
+    myMesh.addVertex(50, -50, 0)
+    myMesh.addColor(0, 1, 0, 1)
+    
+    myMesh.addVertex(0, 50, 0)
+    myMesh.addColor(0, 0, 1, 1)
+
+    // Setup Polyline (star shape)
+    myPath.addVertex(0, -50)
+    myPath.lineTo(14, -20)
+    myPath.lineTo(47, -15)
+    myPath.lineTo(23, 7)
+    myPath.lineTo(29, 40)
+    myPath.lineTo(0, 25)
+    myPath.lineTo(-29, 40)
+    myPath.lineTo(-23, 7)
+    myPath.lineTo(-47, -15)
+    myPath.lineTo(-14, -20)
+    myPath.close()
+
+    // Setup StrokeMesh (thick line spiral)
+    myStroke.setWidth(5.0)
+    myStroke.setColor(Color(1.0, 0.5, 0.0))
+    myStroke.setCapType(CAP_ROUND)
+    myStroke.setJoinType(JOIN_ROUND)
+    
+    for (var i = 0; i < 50; ++i) {
+        var r = i * 2.0
+        var a = i * 0.5
+        myStroke.addVertex(cos(a) * r, sin(a) * r)
+    }
+    myStroke.update() // Important to generate mesh
+}
+
+def update() {
+    angle = angle + getDeltaTime()
+}
+
+def draw() {
+    clear(0.2)
+
+    var cx = getWindowWidth() / 2.0
+    var cy = getWindowHeight() / 2.0
+
+    // Draw Mesh
+    pushMatrix()
+    translate(cx - 150, cy)
+    rotate(angle)
+    myMesh.draw()
+    popMatrix()
+    
+    drawBitmapString("Mesh", cx - 170, cy + 80)
+
+    // Draw Polyline (Stroke only)
+    pushMatrix()
+    translate(cx, cy)
+    rotate(-angle)
+    noFill()
+    stroke()
+    setStrokeWeight(2.0)
+    setColor(1, 1, 0)
+    myPath.draw()
+    popMatrix()
+
+    drawBitmapString("Polyline", cx - 20, cy + 80)
+
+    // Draw StrokeMesh
+    pushMatrix()
+    translate(cx + 150, cy)
+    rotate(angle * 0.5)
+    myStroke.draw()
+    popMatrix()
+
+    drawBitmapString("StrokeMesh", cx + 130, cy + 80)
+    
+    // Test global draw functions
+    pushMatrix()
+    translate(cx, cy + 150)
+    scale(0.5)
+    drawMesh(myMesh) // Should draw the same triangle
+    popMatrix()
+}
