@@ -48,6 +48,22 @@ void tcScriptHost::bindTrussCFunctions() {
     }), "drawTriangle");
     chai_->add(fun([](const Vec3& p1, const Vec3& p2, const Vec3& p3) { drawTriangle(p1, p2, p3); }), "drawTriangle");
 
+    // 3D Primitives (respects fill/noFill)
+    chai_->add(fun([](float size) { drawBox(size); }), "drawBox");
+    chai_->add(fun([](float w, float h, float d) { drawBox(w, h, d); }), "drawBox");
+    chai_->add(fun([](float x, float y, float z, float size) { drawBox(x, y, z, size); }), "drawBox");
+    chai_->add(fun([](float x, float y, float z, float w, float h, float d) { drawBox(x, y, z, w, h, d); }), "drawBox");
+    chai_->add(fun([](const Vec3& pos, float size) { drawBox(pos, size); }), "drawBox");
+    chai_->add(fun([](const Vec3& pos, float w, float h, float d) { drawBox(pos, w, h, d); }), "drawBox");
+
+    chai_->add(fun([](float radius) { drawSphere(radius); }), "drawSphere");
+    chai_->add(fun([](float x, float y, float z, float radius) { drawSphere(x, y, z, radius); }), "drawSphere");
+    chai_->add(fun([](const Vec3& pos, float radius) { drawSphere(pos, radius); }), "drawSphere");
+
+    chai_->add(fun([](float radius, float height) { drawCone(radius, height); }), "drawCone");
+    chai_->add(fun([](float x, float y, float z, float radius, float height) { drawCone(x, y, z, radius, height); }), "drawCone");
+    chai_->add(fun([](const Vec3& pos, float radius, float height) { drawCone(pos, radius, height); }), "drawCone");
+
     // Shape construction
     chai_->add(fun([]() { beginShape(); }), "beginShape");
     chai_->add(fun([](float x, float y) { vertex(x, y); }), "vertex");
@@ -75,7 +91,12 @@ void tcScriptHost::bindTrussCFunctions() {
     chai_->add(fun([](float x, float y) { translate(x, y); }), "translate");
     chai_->add(fun([](float x, float y, float z) { translate(x, y, z); }), "translate");
     chai_->add(fun([](float rad) { rotate(rad); }), "rotate");
+    chai_->add(fun([](float x, float y, float z) { rotate(x, y, z); }), "rotate");
+    chai_->add(fun([](const Vec3& euler) { rotate(euler); }), "rotate");
+    chai_->add(fun([](const Quaternion& quat) { rotate(quat); }), "rotate");
     chai_->add(fun([](float deg) { rotateDeg(deg); }), "rotateDeg");
+    chai_->add(fun([](float x, float y, float z) { rotateDeg(x, y, z); }), "rotateDeg");
+    chai_->add(fun([](const Vec3& euler) { rotateDeg(euler); }), "rotateDeg");
     chai_->add(fun([](float s) { scale(s, s); }), "scale");
     chai_->add(fun([](float sx, float sy) { scale(sx, sy); }), "scale");
     chai_->add(fun([]() { pushMatrix(); }), "pushMatrix");
@@ -86,12 +107,15 @@ void tcScriptHost::bindTrussCFunctions() {
     // ==========================================================================
     chai_->add(fun([]() { return getWindowWidth(); }), "getWindowWidth");
     chai_->add(fun([]() { return getWindowHeight(); }), "getWindowHeight");
+    chai_->add(fun([]() { return getWindowSize(); }), "getWindowSize");
 
     // ==========================================================================
     // Input - Mouse
     // ==========================================================================
     chai_->add(fun([]() { return getMouseX(); }), "getMouseX");
     chai_->add(fun([]() { return getMouseY(); }), "getMouseY");
+    chai_->add(fun([]() { return getMousePos(); }), "getMousePos");
+    chai_->add(fun([]() { return getGlobalMousePos(); }), "getGlobalMousePos");
     chai_->add(fun([]() { return isMousePressed(); }), "isMousePressed");
 
     // ==========================================================================
