@@ -41,6 +41,13 @@ void tcScriptHost::bindTrussCFunctions() {
         drawTriangle(x1, y1, x2, y2, x3, y3);
     }), "drawTriangle");
 
+    // Shape construction
+    chai_->add(fun([]() { beginShape(); }), "beginShape");
+    chai_->add(fun([](float x, float y) { vertex(x, y); }), "vertex");
+    chai_->add(fun([](float x, float y, float z) { vertex(x, y, z); }), "vertex");
+    chai_->add(fun([]() { endShape(); }), "endShape");
+    chai_->add(fun([](bool close) { endShape(close); }), "endShape");
+
     // Fill/Stroke control
     chai_->add(fun([]() { fill(); }), "fill");
     chai_->add(fun([]() { noFill(); }), "noFill");
