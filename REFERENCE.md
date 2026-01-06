@@ -181,6 +181,8 @@ distSquared(x1, y1, x2, y2)      // Squared distance
 ```javascript
 logNotice(message)               // Print to console
 to_string(value)                 // Convert to string
+beep()                           // Play a beep sound
+beep(frequency)                  // Play a beep sound
 ```
 
 ## Types - Vec2
@@ -213,6 +215,55 @@ Color_fromOKLCH(L, C, H)         // Create Color from OKLCH
 Color_fromOKLCH(L, C, H, a)      // Create Color from OKLCH
 Color_fromOKLab(L, a, b)         // Create Color from OKLab
 Color_fromOKLab(L, a, b, alpha)  // Create Color from OKLab
+```
+
+## Graphics - Advanced
+
+```javascript
+drawMesh(mesh)                   // Draw a mesh
+drawPolyline(polyline)           // Draw a polyline
+```
+
+## Types - Mesh
+
+```javascript
+Mesh()                           // Create a new Mesh
+setMode(mode)                    // Set primitive mode (MESH_TRIANGLES, etc.)
+addVertex(x, y, z)               // Add a vertex
+addVertex(v)                     // Add a vertex
+addColor(r, g, b, a)             // Add a color for the vertex
+addColor(c)                      // Add a color for the vertex
+addTexCoord(u, v)                // Add a texture coordinate
+addNormal(x, y, z)               // Add a normal vector
+addIndex(index)                  // Add an index
+addTriangle(i1, i2, i3)          // Add a triangle (3 indices)
+clear()                          // Clear all data
+draw()                           // Draw the mesh
+```
+
+## Types - Polyline
+
+```javascript
+Polyline()                       // Create a new Polyline (Path)
+addVertex(x, y)                  // Add a vertex
+lineTo(x, y)                     // Add a line segment to point
+bezierTo(cx1, cy1, cx2, cy2, x, y) // Add a cubic bezier curve
+quadBezierTo(cx, cy, x, y)       // Add a quadratic bezier curve
+curveTo(x, y)                    // Add a Catmull-Rom curve segment
+arc(x, y, rX, rY, start, end)    // Add an arc
+close()                          // Close the shape
+```
+
+## Types - StrokeMesh
+
+```javascript
+StrokeMesh()                     // Create a new StrokeMesh
+setWidth(width)                  // Set stroke width
+setColor(color)                  // Set stroke color
+setCapType(type)                 // Set cap type (CAP_BUTT, CAP_ROUND, CAP_SQUARE)
+setJoinType(type)                // Set join type (JOIN_MITER, JOIN_ROUND, JOIN_BEVEL)
+addVertex(x, y)                  // Add a vertex
+update()                         // Update the internal mesh
 ```
 
 ## Constants

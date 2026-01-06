@@ -180,6 +180,9 @@ void tcScriptHost::bindTrussCFunctions() {
         logNotice("tcScript") << msg;
     }), "logNotice");
 
+    chai_->add(fun([]() { beep(); }), "beep");
+    chai_->add(fun([](float f) { beep(f); }), "beep");
+
     // ==========================================================================
     // Class Bindings - Vec2
     // ==========================================================================
