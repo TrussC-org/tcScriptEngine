@@ -73,17 +73,31 @@ void tcScriptHost::bindTrussCFunctions() {
     chai_->add(fun([]() { endShape(); }), "endShape");
     chai_->add(fun([](bool close) { endShape(close); }), "endShape");
 
-    // Fill/Stroke control
+    // Fill/Stroke control (oF-style: fill and noFill are mutually exclusive modes)
     chai_->add(fun([]() { fill(); }), "fill");
     chai_->add(fun([]() { noFill(); }), "noFill");
-    chai_->add(fun([]() { stroke(); }), "stroke");
-    chai_->add(fun([]() { noStroke(); }), "noStroke");
     chai_->add(fun([](float w) { setStrokeWeight(w); }), "setStrokeWeight");
 
     // Text
     chai_->add(fun([](const string& text, float x, float y) {
         drawBitmapString(text, x, y);
     }), "drawBitmapString");
+
+    // ==========================================================================
+    // 3D Setup
+    // ==========================================================================
+    chai_->add(fun([]() { setupScreenPerspective(); }), "setupScreenPerspective");
+    chai_->add(fun([](float fovDeg) { setupScreenPerspective(fovDeg); }), "setupScreenPerspective");
+    chai_->add(fun([](float fovDeg, float nearDist, float farDist) {
+        setupScreenPerspective(fovDeg, nearDist, farDist);
+    }), "setupScreenPerspective");
+    chai_->add(fun([]() { setupScreenOrtho(); }), "setupScreenOrtho");
+    chai_->add(fun([](float fovDeg) { setupScreenFov(fovDeg); }), "setupScreenFov");
+    chai_->add(fun([](float fovDeg, float nearDist, float farDist) {
+        setupScreenFov(fovDeg, nearDist, farDist);
+    }), "setupScreenFov");
+    chai_->add(fun([](float fovDeg) { setDefaultScreenFov(fovDeg); }), "setDefaultScreenFov");
+    chai_->add(fun([]() { return getDefaultScreenFov(); }), "getDefaultScreenFov");
 
     // ==========================================================================
     // Transform
