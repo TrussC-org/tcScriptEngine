@@ -73,10 +73,22 @@ void tcScriptHost::bindTrussCFunctions() {
     chai_->add(fun([]() { endShape(); }), "endShape");
     chai_->add(fun([](bool close) { endShape(close); }), "endShape");
 
+    // Stroke construction (uses StrokeMesh internally)
+    chai_->add(fun([]() { beginStroke(); }), "beginStroke");
+    chai_->add(fun([]() { endStroke(); }), "endStroke");
+    chai_->add(fun([](bool close) { endStroke(close); }), "endStroke");
+    chai_->add(fun([](float x1, float y1, float x2, float y2) { drawStroke(x1, y1, x2, y2); }), "drawStroke");
+    chai_->add(fun([](const Vec2& p1, const Vec2& p2) { drawStroke(p1, p2); }), "drawStroke");
+
     // Fill/Stroke control (oF-style: fill and noFill are mutually exclusive modes)
     chai_->add(fun([]() { fill(); }), "fill");
     chai_->add(fun([]() { noFill(); }), "noFill");
     chai_->add(fun([](float w) { setStrokeWeight(w); }), "setStrokeWeight");
+    chai_->add(fun([]() { return getStrokeWeight(); }), "getStrokeWeight");
+    chai_->add(fun([](StrokeCap cap) { setStrokeCap(cap); }), "setStrokeCap");
+    chai_->add(fun([]() { return getStrokeCap(); }), "getStrokeCap");
+    chai_->add(fun([](StrokeJoin join) { setStrokeJoin(join); }), "setStrokeJoin");
+    chai_->add(fun([]() { return getStrokeJoin(); }), "getStrokeJoin");
 
     // Text
     chai_->add(fun([](const string& text, float x, float y) {
@@ -491,14 +503,23 @@ void tcScriptHost::bindTrussCFunctions() {
     chai_->add(constructor<StrokeMesh()>(), "StrokeMesh");
     chai_->add(constructor<StrokeMesh(const Path&)>(), "StrokeMesh");
 
-    // StrokeMesh Enums
+    // StrokeMesh Enums (for direct StrokeMesh use)
     chai_->add_global_const(const_var(StrokeMesh::CAP_BUTT), "CAP_BUTT");
     chai_->add_global_const(const_var(StrokeMesh::CAP_ROUND), "CAP_ROUND");
     chai_->add_global_const(const_var(StrokeMesh::CAP_SQUARE), "CAP_SQUARE");
-    
+
     chai_->add_global_const(const_var(StrokeMesh::JOIN_MITER), "JOIN_MITER");
     chai_->add_global_const(const_var(StrokeMesh::JOIN_ROUND), "JOIN_ROUND");
     chai_->add_global_const(const_var(StrokeMesh::JOIN_BEVEL), "JOIN_BEVEL");
+
+    // StrokeCap/StrokeJoin enums (for beginStroke/endStroke API)
+    chai_->add_global_const(const_var(StrokeCap::Butt), "StrokeCap_Butt");
+    chai_->add_global_const(const_var(StrokeCap::Round), "StrokeCap_Round");
+    chai_->add_global_const(const_var(StrokeCap::Square), "StrokeCap_Square");
+
+    chai_->add_global_const(const_var(StrokeJoin::Miter), "StrokeJoin_Miter");
+    chai_->add_global_const(const_var(StrokeJoin::Round), "StrokeJoin_Round");
+    chai_->add_global_const(const_var(StrokeJoin::Bevel), "StrokeJoin_Bevel");
 
     chai_->add(fun(&StrokeMesh::setWidth), "setWidth");
     chai_->add(fun(&StrokeMesh::setColor), "setColor");
