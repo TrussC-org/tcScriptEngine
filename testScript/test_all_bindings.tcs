@@ -1,0 +1,108 @@
+// Comprehensive test for all AngelScript bindings
+float time = 0.0f;
+
+void setup() {
+    logNotice("=== Testing All AngelScript Bindings ===");
+
+    // Test Vec2
+    Vec2 v1(100.0f, 200.0f);
+    Vec2 v2(50.0f, 50.0f);
+    Vec2 v3 = v1 + v2;
+    logNotice("Vec2 test: " + toString(v3.x) + ", " + toString(v3.y));
+    logNotice("Vec2 length: " + toString(v1.length()));
+
+    // Test Vec3
+    Vec3 v3d(1.0f, 2.0f, 3.0f);
+    logNotice("Vec3 test: " + toString(v3d.x) + ", " + toString(v3d.y) + ", " + toString(v3d.z));
+
+    // Test Color
+    Color c1(1.0f, 0.5f, 0.2f);
+    Color c2 = Color::fromHSB(0.5f, 1.0f, 1.0f);
+    logNotice("Color test: " + toString(c1.r) + ", " + toString(c1.g) + ", " + toString(c1.b));
+
+    // Test Rect
+    Rect rect(10.0f, 20.0f, 100.0f, 50.0f);
+    logNotice("Rect test: " + toString(rect.x) + ", " + toString(rect.y) + ", " + toString(rect.width) + ", " + toString(rect.height));
+
+    // Test constants
+    logNotice("TAU = " + toString(TAU));
+    logNotice("PI = " + toString(PI));
+    logNotice("HALF_TAU = " + toString(HALF_TAU));
+}
+
+void draw() {
+    time = time + getDeltaTime();
+    clear(0.1f);
+
+    // Test basic drawing
+    setColor(1.0f, 0.5f, 0.2f);
+    drawCircle(200.0f, 150.0f, 50.0f + sin(time * 2.0f) * 20.0f);
+
+    // Test ellipse
+    setColor(0.2f, 0.8f, 0.5f);
+    drawEllipse(400.0f, 150.0f, 80.0f, 50.0f);
+
+    // Test rectangle
+    setColor(0.5f, 0.3f, 0.9f);
+    drawRect(100.0f, 250.0f, 100.0f, 60.0f);
+
+    // Test stroke with C++ style enums
+    setStrokeWeight(5.0f);
+    setStrokeCap(StrokeCap::Round);
+    setStrokeJoin(StrokeJoin::Round);
+
+    setColor(0.9f, 0.9f, 0.2f);
+    beginStroke();
+    vertex(100.0f, 400.0f);
+    vertex(200.0f, 350.0f);
+    vertex(300.0f, 400.0f);
+    vertex(400.0f, 350.0f);
+    endStroke();
+
+    // Test transform
+    pushMatrix();
+    translate(500.0f, 200.0f);
+    rotate(time);
+    setColor(0.8f, 0.3f, 0.9f);
+    drawRect(-40.0f, -40.0f, 80.0f, 80.0f);
+    popMatrix();
+
+    // Test math functions
+    float mappedX = map(sin(time), -1.0f, 1.0f, 100.0f, 600.0f);
+    setColor(1.0f, 1.0f, 1.0f);
+    drawCircle(mappedX, 500.0f, 20.0f);
+
+    // Test lerp
+    float lerpedY = lerp(400.0f, 500.0f, (sin(time * 2.0f) + 1.0f) / 2.0f);
+    setColor(0.0f, 1.0f, 1.0f);
+    drawCircle(600.0f, lerpedY, 15.0f);
+
+    // Test Vec2 operations
+    Vec2 center(getWindowWidth() / 2.0f, getWindowHeight() / 2.0f);
+    Vec2 offset(cos(time) * 100.0f, sin(time) * 100.0f);
+    Vec2 pos = center + offset;
+    setColor(1.0f, 0.0f, 0.5f);
+    drawCircle(pos.x, pos.y, 25.0f);
+
+    // Test line
+    setColor(0.5f, 0.5f, 0.5f);
+    drawLine(0.0f, 0.0f, getMouseX(), getMouseY());
+
+    // Test triangle
+    setColor(0.3f, 0.7f, 0.3f);
+    drawTriangle(550.0f, 400.0f, 600.0f, 320.0f, 650.0f, 400.0f);
+
+    // Test bitmap string
+    setColor(1.0f, 1.0f, 1.0f);
+    drawBitmapString("FPS: " + toString(int(1.0f / getDeltaTime())), 10.0f, 20.0f);
+    drawBitmapString("Time: " + toString(time), 10.0f, 40.0f);
+    drawBitmapString("Mouse: " + toString(int(getMouseX())) + ", " + toString(int(getMouseY())), 10.0f, 60.0f);
+}
+
+void mousePressed(float x, float y, int button) {
+    logNotice("Mouse pressed at " + toString(x) + ", " + toString(y) + " button=" + toString(button));
+}
+
+void keyPressed(int key) {
+    logNotice("Key pressed: " + toString(key));
+}
