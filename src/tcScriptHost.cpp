@@ -71,6 +71,12 @@ static void messageCallbackStatic(const asSMessageInfo* msg, void* param) {
 #define AS_INT_0(func) \
     static void as_##func(asIScriptGeneric* gen) { gen->SetReturnDWord(func()); }
 
+#define AS_VOID_1I(func) \
+    static void as_##func##_1i(asIScriptGeneric* gen) { func(gen->GetArgDWord(0)); }
+
+#define AS_BOOL_0(func) \
+    static void as_##func(asIScriptGeneric* gen) { gen->SetReturnByte(func() ? 1 : 0); }
+
 // =============================================================================
 // Graphics - Clear & Color
 // =============================================================================
@@ -131,6 +137,11 @@ static void as_setStrokeJoin(asIScriptGeneric* gen) {
 static void as_getStrokeJoin(asIScriptGeneric* gen) {
     gen->SetReturnDWord(static_cast<int>(getStrokeJoin()));
 }
+
+AS_VOID_1I(setCircleResolution)
+AS_INT_0(getCircleResolution)
+AS_BOOL_0(isFillEnabled)
+AS_BOOL_0(isStrokeEnabled)
 
 // =============================================================================
 // Shape & Stroke construction
@@ -1053,6 +1064,10 @@ void tcScriptHost::registerTrussCFunctions() {
     r = engine_->RegisterGlobalFunction("int getStrokeCap()", asFUNCTION(as_getStrokeCap), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterGlobalFunction("void setStrokeJoin(int)", asFUNCTION(as_setStrokeJoin), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterGlobalFunction("int getStrokeJoin()", asFUNCTION(as_getStrokeJoin), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("void setCircleResolution(int)", asFUNCTION(as_setCircleResolution_1i), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("int getCircleResolution()", asFUNCTION(as_getCircleResolution), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("bool isFillEnabled()", asFUNCTION(as_isFillEnabled), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("bool isStrokeEnabled()", asFUNCTION(as_isStrokeEnabled), asCALL_GENERIC); assert(r >= 0);
 
     // =========================================================================
     // Shape & Stroke construction
