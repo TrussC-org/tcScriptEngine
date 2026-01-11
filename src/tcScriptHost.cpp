@@ -1,5 +1,6 @@
 #include "tcScriptHost.h"
 #include <scriptstdstring/scriptstdstring.h>
+#include <scriptarray/scriptarray.h>
 #include <cmath>
 #include <vector>
 #include <memory>
@@ -10,6 +11,7 @@ static vector<unique_ptr<Fbo>> g_fbos;
 static vector<unique_ptr<Pixels>> g_pixels;
 static vector<unique_ptr<Sound>> g_sounds;
 static vector<unique_ptr<Font>> g_fonts;
+static vector<unique_ptr<Tween<float>>> g_tweens;
 
 static void clearScriptResources() {
     g_textures.clear();
@@ -17,6 +19,7 @@ static void clearScriptResources() {
     g_pixels.clear();
     g_sounds.clear();
     g_fonts.clear();
+    g_tweens.clear();
 }
 
 // Font path constants for script access
@@ -32,6 +35,11 @@ static void messageCallbackStatic(const asSMessageInfo* msg, void* param) {
     else if (msg->type == asMSGTYPE_INFORMATION) type = "INFO";
 
     tc::logNotice() << "[AngelScript] " << type << " (" << msg->section << ", " << msg->row << ") : " << msg->col << " : " << msg->message;
+
+    // Store error info for JS to parse (only errors, not warnings/info)
+    if (msg->type == asMSGTYPE_ERROR) {
+        host->appendError(msg->section, msg->row, msg->col, msg->message);
+    }
 }
 
 // =============================================================================
@@ -94,6 +102,7 @@ AS_VOID_3F(setColorOKLab)
 // =============================================================================
 AS_VOID_4F(drawRect)
 AS_VOID_3F(drawCircle)
+AS_VOID_2F(drawPoint)
 AS_VOID_4F(drawEllipse)
 AS_VOID_4F(drawLine)
 AS_VOID_6F(drawTriangle)
@@ -142,6 +151,13 @@ AS_VOID_1I(setCircleResolution)
 AS_INT_0(getCircleResolution)
 AS_BOOL_0(isFillEnabled)
 AS_BOOL_0(isStrokeEnabled)
+AS_VOID_0(pushStyle)
+AS_VOID_0(popStyle)
+
+static void as_getColor(asIScriptGeneric* gen) {
+    Color c = getColor();
+    gen->SetReturnObject(&c);
+}
 
 // =============================================================================
 // Shape & Stroke construction
@@ -167,6 +183,14 @@ AS_VOID_3F(rotate)
 
 static void as_rotateDeg_1f(asIScriptGeneric* gen) { rotateDeg(gen->GetArgFloat(0)); }
 static void as_rotateDeg_3f(asIScriptGeneric* gen) { rotateDeg(gen->GetArgFloat(0), gen->GetArgFloat(1), gen->GetArgFloat(2)); }
+
+AS_VOID_1F(rotateX)
+AS_VOID_1F(rotateY)
+AS_VOID_1F(rotateZ)
+AS_VOID_1F(rotateXDeg)
+AS_VOID_1F(rotateYDeg)
+AS_VOID_1F(rotateZDeg)
+AS_VOID_0(resetMatrix)
 
 static void as_scale_1f(asIScriptGeneric* gen) { scale(gen->GetArgFloat(0), gen->GetArgFloat(0)); }
 AS_VOID_2F(scale)
@@ -336,6 +360,24 @@ static const int kStrokeCapSquare = static_cast<int>(StrokeCap::Square);
 static const int kStrokeJoinMiter = static_cast<int>(StrokeJoin::Miter);
 static const int kStrokeJoinRound = static_cast<int>(StrokeJoin::Round);
 static const int kStrokeJoinBevel = static_cast<int>(StrokeJoin::Bevel);
+
+// EaseType constants
+static const int kEaseLinear = static_cast<int>(EaseType::Linear);
+static const int kEaseQuad = static_cast<int>(EaseType::Quad);
+static const int kEaseCubic = static_cast<int>(EaseType::Cubic);
+static const int kEaseQuart = static_cast<int>(EaseType::Quart);
+static const int kEaseQuint = static_cast<int>(EaseType::Quint);
+static const int kEaseSine = static_cast<int>(EaseType::Sine);
+static const int kEaseExpo = static_cast<int>(EaseType::Expo);
+static const int kEaseCirc = static_cast<int>(EaseType::Circ);
+static const int kEaseBack = static_cast<int>(EaseType::Back);
+static const int kEaseElastic = static_cast<int>(EaseType::Elastic);
+static const int kEaseBounce = static_cast<int>(EaseType::Bounce);
+
+// EaseMode constants
+static const int kEaseModeIn = static_cast<int>(EaseMode::In);
+static const int kEaseModeOut = static_cast<int>(EaseMode::Out);
+static const int kEaseModeInOut = static_cast<int>(EaseMode::InOut);
 static const float kHalfTau = TAU / 2.0f;
 static const float kQuarterTau = TAU / 4.0f;
 
@@ -382,6 +424,11 @@ static void Vec2_Dot(asIScriptGeneric* gen) {
     Vec2* self = static_cast<Vec2*>(gen->GetObject());
     Vec2* other = static_cast<Vec2*>(gen->GetArgObject(0));
     gen->SetReturnFloat(self->dot(*other));
+}
+static void Vec2_Distance(asIScriptGeneric* gen) {
+    Vec2* self = static_cast<Vec2*>(gen->GetObject());
+    Vec2* other = static_cast<Vec2*>(gen->GetArgObject(0));
+    gen->SetReturnFloat(self->distance(*other));
 }
 static void Vec2_Angle(asIScriptGeneric* gen) {
     Vec2* self = static_cast<Vec2*>(gen->GetObject());
@@ -538,6 +585,12 @@ static void Color_Set_4f(asIScriptGeneric* gen) {
     self->a = gen->GetArgFloat(3);
     gen->SetReturnObject(self);
 }
+static void Color_Lerp(asIScriptGeneric* gen) {
+    Color* self = static_cast<Color*>(gen->GetObject());
+    Color* target = static_cast<Color*>(gen->GetArgObject(0));
+    float t = gen->GetArgFloat(1);
+    new(gen->GetAddressOfReturnLocation()) Color(self->lerp(*target, t));
+}
 static void Color_fromHSB_3f(asIScriptGeneric* gen) {
     new(gen->GetAddressOfReturnLocation()) Color(Color::fromHSB(gen->GetArgFloat(0), gen->GetArgFloat(1), gen->GetArgFloat(2)));
 }
@@ -586,6 +639,14 @@ static void Rect_Intersects(asIScriptGeneric* gen) {
     Rect* self = static_cast<Rect*>(gen->GetObject());
     Rect* other = static_cast<Rect*>(gen->GetArgObject(0));
     gen->SetReturnByte(self->intersects(*other) ? 1 : 0);
+}
+static void Rect_GetCenterX(asIScriptGeneric* gen) {
+    Rect* self = static_cast<Rect*>(gen->GetObject());
+    gen->SetReturnFloat(self->getCenterX());
+}
+static void Rect_GetCenterY(asIScriptGeneric* gen) {
+    Rect* self = static_cast<Rect*>(gen->GetObject());
+    gen->SetReturnFloat(self->getCenterY());
 }
 
 // =============================================================================
@@ -793,6 +854,169 @@ static void Sound_SetLoop(asIScriptGeneric* gen) {
     Sound* self = static_cast<Sound*>(gen->GetObject());
     self->setLoop(gen->GetArgByte(0) != 0);
 }
+static void Sound_IsLoop(asIScriptGeneric* gen) {
+    Sound* self = static_cast<Sound*>(gen->GetObject());
+    gen->SetReturnByte(self->isLoop() ? 1 : 0);
+}
+static void Sound_SetPan(asIScriptGeneric* gen) {
+    Sound* self = static_cast<Sound*>(gen->GetObject());
+    self->setPan(gen->GetArgFloat(0));
+}
+static void Sound_GetPan(asIScriptGeneric* gen) {
+    Sound* self = static_cast<Sound*>(gen->GetObject());
+    gen->SetReturnFloat(self->getPan());
+}
+static void Sound_SetSpeed(asIScriptGeneric* gen) {
+    Sound* self = static_cast<Sound*>(gen->GetObject());
+    self->setSpeed(gen->GetArgFloat(0));
+}
+static void Sound_GetSpeed(asIScriptGeneric* gen) {
+    Sound* self = static_cast<Sound*>(gen->GetObject());
+    gen->SetReturnFloat(self->getSpeed());
+}
+static void Sound_Pause(asIScriptGeneric* gen) {
+    Sound* self = static_cast<Sound*>(gen->GetObject());
+    self->pause();
+}
+static void Sound_Resume(asIScriptGeneric* gen) {
+    Sound* self = static_cast<Sound*>(gen->GetObject());
+    self->resume();
+}
+static void Sound_IsPaused(asIScriptGeneric* gen) {
+    Sound* self = static_cast<Sound*>(gen->GetObject());
+    gen->SetReturnByte(self->isPaused() ? 1 : 0);
+}
+static void Sound_GetPosition(asIScriptGeneric* gen) {
+    Sound* self = static_cast<Sound*>(gen->GetObject());
+    gen->SetReturnFloat(self->getPosition());
+}
+static void Sound_GetDuration(asIScriptGeneric* gen) {
+    Sound* self = static_cast<Sound*>(gen->GetObject());
+    gen->SetReturnFloat(self->getDuration());
+}
+
+// =============================================================================
+// Easing functions
+// =============================================================================
+static void as_ease(asIScriptGeneric* gen) {
+    float t = gen->GetArgFloat(0);
+    int type = gen->GetArgDWord(1);
+    int mode = gen->GetArgDWord(2);
+    gen->SetReturnFloat(ease(t, static_cast<EaseType>(type), static_cast<EaseMode>(mode)));
+}
+static void as_easeIn(asIScriptGeneric* gen) {
+    float t = gen->GetArgFloat(0);
+    int type = gen->GetArgDWord(1);
+    gen->SetReturnFloat(easeIn(t, static_cast<EaseType>(type)));
+}
+static void as_easeOut(asIScriptGeneric* gen) {
+    float t = gen->GetArgFloat(0);
+    int type = gen->GetArgDWord(1);
+    gen->SetReturnFloat(easeOut(t, static_cast<EaseType>(type)));
+}
+static void as_easeInOut(asIScriptGeneric* gen) {
+    float t = gen->GetArgFloat(0);
+    int type = gen->GetArgDWord(1);
+    gen->SetReturnFloat(easeInOut(t, static_cast<EaseType>(type)));
+}
+
+// =============================================================================
+// Tween<float> type for AngelScript (reference type)
+// =============================================================================
+
+static void TweenFloat_Factory(asIScriptGeneric* gen) {
+    g_tweens.push_back(make_unique<Tween<float>>());
+    gen->SetReturnObject(g_tweens.back().get());
+}
+static void TweenFloat_From(asIScriptGeneric* gen) {
+    Tween<float>* self = static_cast<Tween<float>*>(gen->GetObject());
+    self->from(gen->GetArgFloat(0));
+    gen->SetReturnObject(self);
+}
+static void TweenFloat_To(asIScriptGeneric* gen) {
+    Tween<float>* self = static_cast<Tween<float>*>(gen->GetObject());
+    self->to(gen->GetArgFloat(0));
+    gen->SetReturnObject(self);
+}
+static void TweenFloat_Duration(asIScriptGeneric* gen) {
+    Tween<float>* self = static_cast<Tween<float>*>(gen->GetObject());
+    self->duration(gen->GetArgFloat(0));
+    gen->SetReturnObject(self);
+}
+static void TweenFloat_Ease(asIScriptGeneric* gen) {
+    Tween<float>* self = static_cast<Tween<float>*>(gen->GetObject());
+    int type = gen->GetArgDWord(0);
+    int mode = gen->GetArgDWord(1);
+    self->ease(static_cast<EaseType>(type), static_cast<EaseMode>(mode));
+    gen->SetReturnObject(self);
+}
+static void TweenFloat_Ease_1(asIScriptGeneric* gen) {
+    Tween<float>* self = static_cast<Tween<float>*>(gen->GetObject());
+    int type = gen->GetArgDWord(0);
+    self->ease(static_cast<EaseType>(type), EaseMode::InOut);
+    gen->SetReturnObject(self);
+}
+static void TweenFloat_Start(asIScriptGeneric* gen) {
+    Tween<float>* self = static_cast<Tween<float>*>(gen->GetObject());
+    self->start();
+    gen->SetReturnObject(self);
+}
+static void TweenFloat_Pause(asIScriptGeneric* gen) {
+    Tween<float>* self = static_cast<Tween<float>*>(gen->GetObject());
+    self->pause();
+    gen->SetReturnObject(self);
+}
+static void TweenFloat_Resume(asIScriptGeneric* gen) {
+    Tween<float>* self = static_cast<Tween<float>*>(gen->GetObject());
+    self->resume();
+    gen->SetReturnObject(self);
+}
+static void TweenFloat_Reset(asIScriptGeneric* gen) {
+    Tween<float>* self = static_cast<Tween<float>*>(gen->GetObject());
+    self->reset();
+    gen->SetReturnObject(self);
+}
+static void TweenFloat_Finish(asIScriptGeneric* gen) {
+    Tween<float>* self = static_cast<Tween<float>*>(gen->GetObject());
+    self->finish();
+    gen->SetReturnObject(self);
+}
+static void TweenFloat_Update(asIScriptGeneric* gen) {
+    Tween<float>* self = static_cast<Tween<float>*>(gen->GetObject());
+    self->update(gen->GetArgFloat(0));
+}
+static void TweenFloat_GetValue(asIScriptGeneric* gen) {
+    Tween<float>* self = static_cast<Tween<float>*>(gen->GetObject());
+    gen->SetReturnFloat(self->getValue());
+}
+static void TweenFloat_GetProgress(asIScriptGeneric* gen) {
+    Tween<float>* self = static_cast<Tween<float>*>(gen->GetObject());
+    gen->SetReturnFloat(self->getProgress());
+}
+static void TweenFloat_GetElapsed(asIScriptGeneric* gen) {
+    Tween<float>* self = static_cast<Tween<float>*>(gen->GetObject());
+    gen->SetReturnFloat(self->getElapsed());
+}
+static void TweenFloat_GetDuration(asIScriptGeneric* gen) {
+    Tween<float>* self = static_cast<Tween<float>*>(gen->GetObject());
+    gen->SetReturnFloat(self->getDuration());
+}
+static void TweenFloat_IsPlaying(asIScriptGeneric* gen) {
+    Tween<float>* self = static_cast<Tween<float>*>(gen->GetObject());
+    gen->SetReturnByte(self->isPlaying() ? 1 : 0);
+}
+static void TweenFloat_IsComplete(asIScriptGeneric* gen) {
+    Tween<float>* self = static_cast<Tween<float>*>(gen->GetObject());
+    gen->SetReturnByte(self->isComplete() ? 1 : 0);
+}
+static void TweenFloat_GetStart(asIScriptGeneric* gen) {
+    Tween<float>* self = static_cast<Tween<float>*>(gen->GetObject());
+    gen->SetReturnFloat(self->getStart());
+}
+static void TweenFloat_GetEnd(asIScriptGeneric* gen) {
+    Tween<float>* self = static_cast<Tween<float>*>(gen->GetObject());
+    gen->SetReturnFloat(self->getEnd());
+}
 
 // =============================================================================
 // Font type for AngelScript (reference type)
@@ -849,6 +1073,7 @@ tcScriptHost::tcScriptHost() {
 
     engine_->SetMessageCallback(asFUNCTION(messageCallbackStatic), this, asCALL_CDECL);
     RegisterStdString(engine_);
+    RegisterScriptArray(engine_, true);  // true = register 'array<T>' as default array type
     registerTrussCFunctions();
     ctx_ = engine_->CreateContext();
 }
@@ -879,6 +1104,7 @@ void tcScriptHost::registerTrussCFunctions() {
     r = engine_->RegisterObjectMethod("Vec2", "Vec2& normalize()", asFUNCTION(Vec2_Normalize), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterObjectMethod("Vec2", "Vec2 normalized() const", asFUNCTION(Vec2_Normalized), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterObjectMethod("Vec2", "float dot(const Vec2 &in) const", asFUNCTION(Vec2_Dot), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Vec2", "float distance(const Vec2 &in) const", asFUNCTION(Vec2_Distance), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterObjectMethod("Vec2", "float angle() const", asFUNCTION(Vec2_Angle), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterObjectMethod("Vec2", "Vec2& rotate(float)", asFUNCTION(Vec2_Rotate), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterObjectMethod("Vec2", "Vec2 rotated(float) const", asFUNCTION(Vec2_Rotated), asCALL_GENERIC); assert(r >= 0);
@@ -925,8 +1151,11 @@ void tcScriptHost::registerTrussCFunctions() {
     r = engine_->RegisterObjectBehaviour("Color", asBEHAVE_CONSTRUCT, "void f(const Color &in)", asFUNCTION(Color_CopyConstruct), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterObjectMethod("Color", "Color& set(float, float, float)", asFUNCTION(Color_Set_3f), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterObjectMethod("Color", "Color& set(float, float, float, float)", asFUNCTION(Color_Set_4f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Color", "Color lerp(const Color &in, float) const", asFUNCTION(Color_Lerp), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterGlobalFunction("Color Color_fromHSB(float, float, float)", asFUNCTION(Color_fromHSB_3f), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterGlobalFunction("Color Color_fromHSB(float, float, float, float)", asFUNCTION(Color_fromHSB_4f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("Color colorFromHSB(float, float, float)", asFUNCTION(Color_fromHSB_3f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("Color colorFromHSB(float, float, float, float)", asFUNCTION(Color_fromHSB_4f), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterGlobalFunction("Color Color_fromOKLCH(float, float, float)", asFUNCTION(Color_fromOKLCH_3f), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterGlobalFunction("Color Color_fromOKLCH(float, float, float, float)", asFUNCTION(Color_fromOKLCH_4f), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterGlobalFunction("Color Color_fromOKLab(float, float, float)", asFUNCTION(Color_fromOKLab_3f), asCALL_GENERIC); assert(r >= 0);
@@ -944,6 +1173,8 @@ void tcScriptHost::registerTrussCFunctions() {
     r = engine_->RegisterObjectMethod("Rect", "Rect& set(float, float, float, float)", asFUNCTION(Rect_Set), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterObjectMethod("Rect", "bool contains(float, float) const", asFUNCTION(Rect_Contains), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterObjectMethod("Rect", "bool intersects(const Rect &in) const", asFUNCTION(Rect_Intersects), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Rect", "float getCenterX() const", asFUNCTION(Rect_GetCenterX), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Rect", "float getCenterY() const", asFUNCTION(Rect_GetCenterY), asCALL_GENERIC); assert(r >= 0);
 
     // =========================================================================
     // Reference types: Pixels, Texture, Fbo, Sound
@@ -1004,6 +1235,16 @@ void tcScriptHost::registerTrussCFunctions() {
     r = engine_->RegisterObjectMethod("Sound", "bool isPlaying() const", asFUNCTION(Sound_IsPlaying), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterObjectMethod("Sound", "void setVolume(float)", asFUNCTION(Sound_SetVolume), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterObjectMethod("Sound", "void setLoop(bool)", asFUNCTION(Sound_SetLoop), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Sound", "bool isLoop() const", asFUNCTION(Sound_IsLoop), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Sound", "void setPan(float)", asFUNCTION(Sound_SetPan), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Sound", "float getPan() const", asFUNCTION(Sound_GetPan), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Sound", "void setSpeed(float)", asFUNCTION(Sound_SetSpeed), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Sound", "float getSpeed() const", asFUNCTION(Sound_GetSpeed), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Sound", "void pause()", asFUNCTION(Sound_Pause), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Sound", "void resume()", asFUNCTION(Sound_Resume), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Sound", "bool isPaused() const", asFUNCTION(Sound_IsPaused), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Sound", "float getPosition() const", asFUNCTION(Sound_GetPosition), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Sound", "float getDuration() const", asFUNCTION(Sound_GetDuration), asCALL_GENERIC); assert(r >= 0);
 
     // Font methods
     r = engine_->RegisterGlobalFunction("Font@ createFont()", asFUNCTION(Font_Factory), asCALL_GENERIC); assert(r >= 0);
@@ -1037,6 +1278,7 @@ void tcScriptHost::registerTrussCFunctions() {
     // =========================================================================
     r = engine_->RegisterGlobalFunction("void drawRect(float, float, float, float)", asFUNCTION(as_drawRect_4f), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterGlobalFunction("void drawCircle(float, float, float)", asFUNCTION(as_drawCircle_3f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("void drawPoint(float, float)", asFUNCTION(as_drawPoint_2f), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterGlobalFunction("void drawEllipse(float, float, float, float)", asFUNCTION(as_drawEllipse_4f), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterGlobalFunction("void drawLine(float, float, float, float)", asFUNCTION(as_drawLine_4f), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterGlobalFunction("void drawTriangle(float, float, float, float, float, float)", asFUNCTION(as_drawTriangle_6f), asCALL_GENERIC); assert(r >= 0);
@@ -1068,6 +1310,9 @@ void tcScriptHost::registerTrussCFunctions() {
     r = engine_->RegisterGlobalFunction("int getCircleResolution()", asFUNCTION(as_getCircleResolution), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterGlobalFunction("bool isFillEnabled()", asFUNCTION(as_isFillEnabled), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterGlobalFunction("bool isStrokeEnabled()", asFUNCTION(as_isStrokeEnabled), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("void pushStyle()", asFUNCTION(as_pushStyle), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("void popStyle()", asFUNCTION(as_popStyle), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("Color getColor()", asFUNCTION(as_getColor), asCALL_GENERIC); assert(r >= 0);
 
     // =========================================================================
     // Shape & Stroke construction
@@ -1092,6 +1337,13 @@ void tcScriptHost::registerTrussCFunctions() {
     r = engine_->RegisterGlobalFunction("void rotate(float, float, float)", asFUNCTION(as_rotate_3f), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterGlobalFunction("void rotateDeg(float)", asFUNCTION(as_rotateDeg_1f), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterGlobalFunction("void rotateDeg(float, float, float)", asFUNCTION(as_rotateDeg_3f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("void rotateX(float)", asFUNCTION(as_rotateX_1f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("void rotateY(float)", asFUNCTION(as_rotateY_1f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("void rotateZ(float)", asFUNCTION(as_rotateZ_1f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("void rotateXDeg(float)", asFUNCTION(as_rotateXDeg_1f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("void rotateYDeg(float)", asFUNCTION(as_rotateYDeg_1f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("void rotateZDeg(float)", asFUNCTION(as_rotateZDeg_1f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("void resetMatrix()", asFUNCTION(as_resetMatrix), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterGlobalFunction("void scale(float)", asFUNCTION(as_scale_1f), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterGlobalFunction("void scale(float, float)", asFUNCTION(as_scale_2f), asCALL_GENERIC); assert(r >= 0);
 
@@ -1111,6 +1363,7 @@ void tcScriptHost::registerTrussCFunctions() {
     r = engine_->RegisterGlobalFunction("float getFrameRate()", asFUNCTION(as_getFrameRate), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterGlobalFunction("int64 getFrameCount()", asFUNCTION(as_getFrameCount), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterGlobalFunction("float getElapsedTimef()", asFUNCTION(as_getElapsedTimef), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("float getElapsedTime()", asFUNCTION(as_getElapsedTimef), asCALL_GENERIC); assert(r >= 0);  // alias
     r = engine_->RegisterGlobalFunction("int64 getElapsedTimeMillis()", asFUNCTION(as_getElapsedTimeMillis), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterGlobalFunction("int64 getElapsedTimeMicros()", asFUNCTION(as_getElapsedTimeMicros), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterGlobalFunction("void resetElapsedTimeCounter()", asFUNCTION(as_resetElapsedTimeCounter), asCALL_GENERIC); assert(r >= 0);
@@ -1227,6 +1480,61 @@ void tcScriptHost::registerTrussCFunctions() {
     r = engine_->RegisterGlobalProperty("const int Round", (void*)&kStrokeJoinRound); assert(r >= 0);
     r = engine_->RegisterGlobalProperty("const int Bevel", (void*)&kStrokeJoinBevel); assert(r >= 0);
     engine_->SetDefaultNamespace("");
+
+    // EaseType namespace
+    engine_->SetDefaultNamespace("EaseType");
+    r = engine_->RegisterGlobalProperty("const int Linear", (void*)&kEaseLinear); assert(r >= 0);
+    r = engine_->RegisterGlobalProperty("const int Quad", (void*)&kEaseQuad); assert(r >= 0);
+    r = engine_->RegisterGlobalProperty("const int Cubic", (void*)&kEaseCubic); assert(r >= 0);
+    r = engine_->RegisterGlobalProperty("const int Quart", (void*)&kEaseQuart); assert(r >= 0);
+    r = engine_->RegisterGlobalProperty("const int Quint", (void*)&kEaseQuint); assert(r >= 0);
+    r = engine_->RegisterGlobalProperty("const int Sine", (void*)&kEaseSine); assert(r >= 0);
+    r = engine_->RegisterGlobalProperty("const int Expo", (void*)&kEaseExpo); assert(r >= 0);
+    r = engine_->RegisterGlobalProperty("const int Circ", (void*)&kEaseCirc); assert(r >= 0);
+    r = engine_->RegisterGlobalProperty("const int Back", (void*)&kEaseBack); assert(r >= 0);
+    r = engine_->RegisterGlobalProperty("const int Elastic", (void*)&kEaseElastic); assert(r >= 0);
+    r = engine_->RegisterGlobalProperty("const int Bounce", (void*)&kEaseBounce); assert(r >= 0);
+    engine_->SetDefaultNamespace("");
+
+    // EaseMode namespace
+    engine_->SetDefaultNamespace("EaseMode");
+    r = engine_->RegisterGlobalProperty("const int In", (void*)&kEaseModeIn); assert(r >= 0);
+    r = engine_->RegisterGlobalProperty("const int Out", (void*)&kEaseModeOut); assert(r >= 0);
+    r = engine_->RegisterGlobalProperty("const int InOut", (void*)&kEaseModeInOut); assert(r >= 0);
+    engine_->SetDefaultNamespace("");
+
+    // =========================================================================
+    // Easing functions
+    // =========================================================================
+    r = engine_->RegisterGlobalFunction("float ease(float, int, int)", asFUNCTION(as_ease), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("float easeIn(float, int)", asFUNCTION(as_easeIn), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("float easeOut(float, int)", asFUNCTION(as_easeOut), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("float easeInOut(float, int)", asFUNCTION(as_easeInOut), asCALL_GENERIC); assert(r >= 0);
+
+    // =========================================================================
+    // Tween type (reference type for float animation)
+    // =========================================================================
+    r = engine_->RegisterObjectType("Tween", 0, asOBJ_REF | asOBJ_NOCOUNT); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("Tween@ createTween()", asFUNCTION(TweenFloat_Factory), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Tween", "Tween@ from(float)", asFUNCTION(TweenFloat_From), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Tween", "Tween@ to(float)", asFUNCTION(TweenFloat_To), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Tween", "Tween@ duration(float)", asFUNCTION(TweenFloat_Duration), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Tween", "Tween@ ease(int, int)", asFUNCTION(TweenFloat_Ease), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Tween", "Tween@ ease(int)", asFUNCTION(TweenFloat_Ease_1), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Tween", "Tween@ start()", asFUNCTION(TweenFloat_Start), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Tween", "Tween@ pause()", asFUNCTION(TweenFloat_Pause), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Tween", "Tween@ resume()", asFUNCTION(TweenFloat_Resume), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Tween", "Tween@ reset()", asFUNCTION(TweenFloat_Reset), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Tween", "Tween@ finish()", asFUNCTION(TweenFloat_Finish), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Tween", "void update(float)", asFUNCTION(TweenFloat_Update), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Tween", "float getValue() const", asFUNCTION(TweenFloat_GetValue), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Tween", "float getProgress() const", asFUNCTION(TweenFloat_GetProgress), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Tween", "float getElapsed() const", asFUNCTION(TweenFloat_GetElapsed), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Tween", "float getDuration() const", asFUNCTION(TweenFloat_GetDuration), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Tween", "bool isPlaying() const", asFUNCTION(TweenFloat_IsPlaying), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Tween", "bool isComplete() const", asFUNCTION(TweenFloat_IsComplete), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Tween", "float getStart() const", asFUNCTION(TweenFloat_GetStart), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Tween", "float getEnd() const", asFUNCTION(TweenFloat_GetEnd), asCALL_GENERIC); assert(r >= 0);
 }
 
 bool tcScriptHost::loadScript(const string& code) {
@@ -1438,4 +1746,15 @@ void tcScriptHost::callWindowResized(int width, int height) {
     ctx_->SetArgDWord(0, width);
     ctx_->SetArgDWord(1, height);
     ctx_->Execute();
+}
+
+void tcScriptHost::appendError(const string& section, int row, int col, const string& message) {
+    // Format: "section (row, col) : message" - parseable by JS
+    string errorLine = section + " (" + to_string(row) + ", " + to_string(col) + ") : " + message;
+
+    if (lastError_.empty()) {
+        lastError_ = errorLine;
+    } else {
+        lastError_ += "\n" + errorLine;
+    }
 }

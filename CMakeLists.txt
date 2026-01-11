@@ -33,9 +33,10 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE angelscript)
 
-# Add AngelScript add-ons (scriptstdstring for std::string support)
+# Add AngelScript add-ons (scriptstdstring for std::string, scriptarray for arrays)
 target_sources(${PROJECT_NAME} PRIVATE
     ${angelscript_SOURCE_DIR}/sdk/add_on/scriptstdstring/scriptstdstring.cpp
+    ${angelscript_SOURCE_DIR}/sdk/add_on/scriptarray/scriptarray.cpp
 )
 
 # ============================================================================

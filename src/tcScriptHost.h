@@ -25,6 +25,9 @@ public:
     // Get last error message
     string getLastError() const { return lastError_; }
 
+    // Append error message (for message callback)
+    void appendError(const string& section, int row, int col, const string& message);
+
     // Lifecycle calls (call from tcApp)
     void callSetup();
     void callUpdate();
