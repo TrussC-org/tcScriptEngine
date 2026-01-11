@@ -12,6 +12,12 @@ static vector<unique_ptr<Pixels>> g_pixels;
 static vector<unique_ptr<Sound>> g_sounds;
 static vector<unique_ptr<Font>> g_fonts;
 static vector<unique_ptr<Tween<float>>> g_tweens;
+static vector<unique_ptr<ChipSoundBundle>> g_chipBundles;
+static vector<unique_ptr<Mesh>> g_meshes;
+static vector<unique_ptr<Path>> g_paths;
+static vector<unique_ptr<StrokeMesh>> g_strokeMeshes;
+static vector<unique_ptr<Image>> g_images;
+static vector<unique_ptr<EasyCam>> g_easyCams;
 
 static void clearScriptResources() {
     g_textures.clear();
@@ -20,6 +26,12 @@ static void clearScriptResources() {
     g_sounds.clear();
     g_fonts.clear();
     g_tweens.clear();
+    g_chipBundles.clear();
+    g_meshes.clear();
+    g_paths.clear();
+    g_strokeMeshes.clear();
+    g_images.clear();
+    g_easyCams.clear();
 }
 
 // Font path constants for script access
@@ -473,6 +485,42 @@ static void Vec2_OpNeg(asIScriptGeneric* gen) {
     Vec2* a = static_cast<Vec2*>(gen->GetObject());
     new(gen->GetAddressOfReturnLocation()) Vec2(-*a);
 }
+static void Vec2_Limit(asIScriptGeneric* gen) {
+    Vec2* self = static_cast<Vec2*>(gen->GetObject());
+    float maxLen = gen->GetArgFloat(0);
+    self->limit(maxLen);
+    gen->SetReturnObject(self);
+}
+static void Vec2_Cross(asIScriptGeneric* gen) {
+    Vec2* self = static_cast<Vec2*>(gen->GetObject());
+    Vec2* other = static_cast<Vec2*>(gen->GetArgObject(0));
+    gen->SetReturnFloat(self->cross(*other));
+}
+static void Vec2_DistanceSquared(asIScriptGeneric* gen) {
+    Vec2* self = static_cast<Vec2*>(gen->GetObject());
+    Vec2* other = static_cast<Vec2*>(gen->GetArgObject(0));
+    gen->SetReturnFloat(self->distanceSquared(*other));
+}
+static void Vec2_Lerp(asIScriptGeneric* gen) {
+    Vec2* self = static_cast<Vec2*>(gen->GetObject());
+    Vec2* other = static_cast<Vec2*>(gen->GetArgObject(0));
+    float t = gen->GetArgFloat(1);
+    new(gen->GetAddressOfReturnLocation()) Vec2(self->lerp(*other, t));
+}
+static void Vec2_Perpendicular(asIScriptGeneric* gen) {
+    Vec2* self = static_cast<Vec2*>(gen->GetObject());
+    new(gen->GetAddressOfReturnLocation()) Vec2(self->perpendicular());
+}
+static void Vec2_Reflected(asIScriptGeneric* gen) {
+    Vec2* self = static_cast<Vec2*>(gen->GetObject());
+    Vec2* normal = static_cast<Vec2*>(gen->GetArgObject(0));
+    new(gen->GetAddressOfReturnLocation()) Vec2(self->reflected(*normal));
+}
+static void Vec2_AngleWith(asIScriptGeneric* gen) {
+    Vec2* self = static_cast<Vec2*>(gen->GetObject());
+    Vec2* other = static_cast<Vec2*>(gen->GetArgObject(0));
+    gen->SetReturnFloat(self->angle(*other));
+}
 
 // =============================================================================
 // Vec3 type for AngelScript
@@ -549,6 +597,37 @@ static void Vec3_OpNeg(asIScriptGeneric* gen) {
     Vec3* a = static_cast<Vec3*>(gen->GetObject());
     new(gen->GetAddressOfReturnLocation()) Vec3(-*a);
 }
+static void Vec3_Limit(asIScriptGeneric* gen) {
+    Vec3* self = static_cast<Vec3*>(gen->GetObject());
+    float maxLen = gen->GetArgFloat(0);
+    self->limit(maxLen);
+    gen->SetReturnObject(self);
+}
+static void Vec3_Distance(asIScriptGeneric* gen) {
+    Vec3* self = static_cast<Vec3*>(gen->GetObject());
+    Vec3* other = static_cast<Vec3*>(gen->GetArgObject(0));
+    gen->SetReturnFloat(self->distance(*other));
+}
+static void Vec3_DistanceSquared(asIScriptGeneric* gen) {
+    Vec3* self = static_cast<Vec3*>(gen->GetObject());
+    Vec3* other = static_cast<Vec3*>(gen->GetArgObject(0));
+    gen->SetReturnFloat(self->distanceSquared(*other));
+}
+static void Vec3_Lerp(asIScriptGeneric* gen) {
+    Vec3* self = static_cast<Vec3*>(gen->GetObject());
+    Vec3* other = static_cast<Vec3*>(gen->GetArgObject(0));
+    float t = gen->GetArgFloat(1);
+    new(gen->GetAddressOfReturnLocation()) Vec3(self->lerp(*other, t));
+}
+static void Vec3_Reflected(asIScriptGeneric* gen) {
+    Vec3* self = static_cast<Vec3*>(gen->GetObject());
+    Vec3* normal = static_cast<Vec3*>(gen->GetArgObject(0));
+    new(gen->GetAddressOfReturnLocation()) Vec3(self->reflected(*normal));
+}
+static void Vec3_XY(asIScriptGeneric* gen) {
+    Vec3* self = static_cast<Vec3*>(gen->GetObject());
+    new(gen->GetAddressOfReturnLocation()) Vec2(self->xy());
+}
 
 // =============================================================================
 // Color type for AngelScript
@@ -609,6 +688,25 @@ static void Color_fromOKLab_3f(asIScriptGeneric* gen) {
 static void Color_fromOKLab_4f(asIScriptGeneric* gen) {
     new(gen->GetAddressOfReturnLocation()) Color(Color::fromOKLab(gen->GetArgFloat(0), gen->GetArgFloat(1), gen->GetArgFloat(2), gen->GetArgFloat(3)));
 }
+static void Color_ToHex_0(asIScriptGeneric* gen) {
+    Color* self = static_cast<Color*>(gen->GetObject());
+    gen->SetReturnDWord(self->toHex(false));
+}
+static void Color_ToHex_1b(asIScriptGeneric* gen) {
+    Color* self = static_cast<Color*>(gen->GetObject());
+    bool includeAlpha = gen->GetArgByte(0) != 0;
+    gen->SetReturnDWord(self->toHex(includeAlpha));
+}
+static void Color_LerpRGB(asIScriptGeneric* gen) {
+    Color* self = static_cast<Color*>(gen->GetObject());
+    Color* target = static_cast<Color*>(gen->GetArgObject(0));
+    float t = gen->GetArgFloat(1);
+    new(gen->GetAddressOfReturnLocation()) Color(self->lerpRGB(*target, t));
+}
+static void Color_Clamped(asIScriptGeneric* gen) {
+    Color* self = static_cast<Color*>(gen->GetObject());
+    new(gen->GetAddressOfReturnLocation()) Color(self->clamped());
+}
 
 // =============================================================================
 // Rect type for AngelScript
@@ -648,6 +746,154 @@ static void Rect_GetCenterY(asIScriptGeneric* gen) {
     Rect* self = static_cast<Rect*>(gen->GetObject());
     gen->SetReturnFloat(self->getCenterY());
 }
+static void Rect_GetRight(asIScriptGeneric* gen) {
+    Rect* self = static_cast<Rect*>(gen->GetObject());
+    gen->SetReturnFloat(self->getRight());
+}
+static void Rect_GetBottom(asIScriptGeneric* gen) {
+    Rect* self = static_cast<Rect*>(gen->GetObject());
+    gen->SetReturnFloat(self->getBottom());
+}
+
+// =============================================================================
+// Mat4 value type wrappers
+// =============================================================================
+static void Mat4_Construct(asIScriptGeneric* gen) {
+    new (gen->GetAddressOfReturnLocation()) Mat4();
+}
+static void Mat4_CopyConstruct(asIScriptGeneric* gen) {
+    Mat4* other = static_cast<Mat4*>(gen->GetArgObject(0));
+    new (gen->GetAddressOfReturnLocation()) Mat4(*other);
+}
+static void Mat4_OpMul_Mat4(asIScriptGeneric* gen) {
+    Mat4* self = static_cast<Mat4*>(gen->GetObject());
+    Mat4* other = static_cast<Mat4*>(gen->GetArgObject(0));
+    new (gen->GetAddressOfReturnLocation()) Mat4(*self * *other);
+}
+static void Mat4_OpMul_Vec3(asIScriptGeneric* gen) {
+    Mat4* self = static_cast<Mat4*>(gen->GetObject());
+    Vec3* v = static_cast<Vec3*>(gen->GetArgObject(0));
+    new (gen->GetAddressOfReturnLocation()) Vec3(*self * *v);
+}
+static void Mat4_Transposed(asIScriptGeneric* gen) {
+    Mat4* self = static_cast<Mat4*>(gen->GetObject());
+    new (gen->GetAddressOfReturnLocation()) Mat4(self->transposed());
+}
+static void Mat4_Inverted(asIScriptGeneric* gen) {
+    Mat4* self = static_cast<Mat4*>(gen->GetObject());
+    new (gen->GetAddressOfReturnLocation()) Mat4(self->inverted());
+}
+// Static factory functions for Mat4
+static void Mat4_Identity(asIScriptGeneric* gen) {
+    new (gen->GetAddressOfReturnLocation()) Mat4(Mat4::identity());
+}
+static void Mat4_Translate_3f(asIScriptGeneric* gen) {
+    new (gen->GetAddressOfReturnLocation()) Mat4(Mat4::translate(
+        gen->GetArgFloat(0), gen->GetArgFloat(1), gen->GetArgFloat(2)));
+}
+static void Mat4_Translate_Vec3(asIScriptGeneric* gen) {
+    Vec3* v = static_cast<Vec3*>(gen->GetArgObject(0));
+    new (gen->GetAddressOfReturnLocation()) Mat4(Mat4::translate(*v));
+}
+static void Mat4_RotateX(asIScriptGeneric* gen) {
+    new (gen->GetAddressOfReturnLocation()) Mat4(Mat4::rotateX(gen->GetArgFloat(0)));
+}
+static void Mat4_RotateY(asIScriptGeneric* gen) {
+    new (gen->GetAddressOfReturnLocation()) Mat4(Mat4::rotateY(gen->GetArgFloat(0)));
+}
+static void Mat4_RotateZ(asIScriptGeneric* gen) {
+    new (gen->GetAddressOfReturnLocation()) Mat4(Mat4::rotateZ(gen->GetArgFloat(0)));
+}
+static void Mat4_Scale_1f(asIScriptGeneric* gen) {
+    new (gen->GetAddressOfReturnLocation()) Mat4(Mat4::scale(gen->GetArgFloat(0)));
+}
+static void Mat4_Scale_3f(asIScriptGeneric* gen) {
+    new (gen->GetAddressOfReturnLocation()) Mat4(Mat4::scale(
+        gen->GetArgFloat(0), gen->GetArgFloat(1), gen->GetArgFloat(2)));
+}
+static void Mat4_LookAt(asIScriptGeneric* gen) {
+    Vec3* eye = static_cast<Vec3*>(gen->GetArgObject(0));
+    Vec3* target = static_cast<Vec3*>(gen->GetArgObject(1));
+    Vec3* up = static_cast<Vec3*>(gen->GetArgObject(2));
+    new (gen->GetAddressOfReturnLocation()) Mat4(Mat4::lookAt(*eye, *target, *up));
+}
+static void Mat4_Ortho(asIScriptGeneric* gen) {
+    new (gen->GetAddressOfReturnLocation()) Mat4(Mat4::ortho(
+        gen->GetArgFloat(0), gen->GetArgFloat(1), gen->GetArgFloat(2),
+        gen->GetArgFloat(3), gen->GetArgFloat(4), gen->GetArgFloat(5)));
+}
+static void Mat4_Perspective(asIScriptGeneric* gen) {
+    new (gen->GetAddressOfReturnLocation()) Mat4(Mat4::perspective(
+        gen->GetArgFloat(0), gen->GetArgFloat(1), gen->GetArgFloat(2), gen->GetArgFloat(3)));
+}
+
+// =============================================================================
+// Quaternion value type wrappers
+// =============================================================================
+static void Quaternion_Construct(asIScriptGeneric* gen) {
+    new (gen->GetAddressOfReturnLocation()) Quaternion();
+}
+static void Quaternion_Construct_4f(asIScriptGeneric* gen) {
+    new (gen->GetAddressOfReturnLocation()) Quaternion(
+        gen->GetArgFloat(0), gen->GetArgFloat(1), gen->GetArgFloat(2), gen->GetArgFloat(3));
+}
+static void Quaternion_CopyConstruct(asIScriptGeneric* gen) {
+    Quaternion* other = static_cast<Quaternion*>(gen->GetArgObject(0));
+    new (gen->GetAddressOfReturnLocation()) Quaternion(*other);
+}
+static void Quaternion_OpMul(asIScriptGeneric* gen) {
+    Quaternion* self = static_cast<Quaternion*>(gen->GetObject());
+    Quaternion* other = static_cast<Quaternion*>(gen->GetArgObject(0));
+    new (gen->GetAddressOfReturnLocation()) Quaternion(*self * *other);
+}
+static void Quaternion_Rotate(asIScriptGeneric* gen) {
+    Quaternion* self = static_cast<Quaternion*>(gen->GetObject());
+    Vec3* v = static_cast<Vec3*>(gen->GetArgObject(0));
+    new (gen->GetAddressOfReturnLocation()) Vec3(self->rotate(*v));
+}
+static void Quaternion_ToEuler(asIScriptGeneric* gen) {
+    Quaternion* self = static_cast<Quaternion*>(gen->GetObject());
+    new (gen->GetAddressOfReturnLocation()) Vec3(self->toEuler());
+}
+static void Quaternion_ToMatrix(asIScriptGeneric* gen) {
+    Quaternion* self = static_cast<Quaternion*>(gen->GetObject());
+    new (gen->GetAddressOfReturnLocation()) Mat4(self->toMatrix());
+}
+static void Quaternion_Normalized(asIScriptGeneric* gen) {
+    Quaternion* self = static_cast<Quaternion*>(gen->GetObject());
+    new (gen->GetAddressOfReturnLocation()) Quaternion(self->normalized());
+}
+static void Quaternion_Length(asIScriptGeneric* gen) {
+    Quaternion* self = static_cast<Quaternion*>(gen->GetObject());
+    gen->SetReturnFloat(self->length());
+}
+static void Quaternion_Conjugate(asIScriptGeneric* gen) {
+    Quaternion* self = static_cast<Quaternion*>(gen->GetObject());
+    new (gen->GetAddressOfReturnLocation()) Quaternion(self->conjugate());
+}
+// Static factory functions for Quaternion
+static void Quaternion_Identity(asIScriptGeneric* gen) {
+    new (gen->GetAddressOfReturnLocation()) Quaternion(Quaternion::identity());
+}
+static void Quaternion_FromAxisAngle(asIScriptGeneric* gen) {
+    Vec3* axis = static_cast<Vec3*>(gen->GetArgObject(0));
+    float radians = gen->GetArgFloat(1);
+    new (gen->GetAddressOfReturnLocation()) Quaternion(Quaternion::fromAxisAngle(*axis, radians));
+}
+static void Quaternion_FromEuler_3f(asIScriptGeneric* gen) {
+    new (gen->GetAddressOfReturnLocation()) Quaternion(Quaternion::fromEuler(
+        gen->GetArgFloat(0), gen->GetArgFloat(1), gen->GetArgFloat(2)));
+}
+static void Quaternion_FromEuler_Vec3(asIScriptGeneric* gen) {
+    Vec3* euler = static_cast<Vec3*>(gen->GetArgObject(0));
+    new (gen->GetAddressOfReturnLocation()) Quaternion(Quaternion::fromEuler(*euler));
+}
+static void Quaternion_Slerp(asIScriptGeneric* gen) {
+    Quaternion* a = static_cast<Quaternion*>(gen->GetArgObject(0));
+    Quaternion* b = static_cast<Quaternion*>(gen->GetArgObject(1));
+    float t = gen->GetArgFloat(2);
+    new (gen->GetAddressOfReturnLocation()) Quaternion(Quaternion::slerp(*a, *b, t));
+}
 
 // =============================================================================
 // Window functions
@@ -658,6 +904,108 @@ static void as_setWindowTitle(asIScriptGeneric* gen) {
 }
 static void as_setWindowSize(asIScriptGeneric* gen) {
     setWindowSize(gen->GetArgDWord(0), gen->GetArgDWord(1));
+}
+static void as_getWindowSize(asIScriptGeneric* gen) {
+    new (gen->GetAddressOfReturnLocation()) Vec2(getWindowSize());
+}
+static void as_getMousePos(asIScriptGeneric* gen) {
+    new (gen->GetAddressOfReturnLocation()) Vec2(getMousePos());
+}
+static void as_getGlobalMousePos(asIScriptGeneric* gen) {
+    new (gen->GetAddressOfReturnLocation()) Vec2(getGlobalMousePos());
+}
+
+// Transform matrix functions
+static void as_getCurrentMatrix(asIScriptGeneric* gen) {
+    new (gen->GetAddressOfReturnLocation()) Mat4(getCurrentMatrix());
+}
+static void as_setMatrix(asIScriptGeneric* gen) {
+    Mat4* mat = static_cast<Mat4*>(gen->GetArgObject(0));
+    setMatrix(*mat);
+}
+
+// Text alignment functions
+static void as_setTextAlign(asIScriptGeneric* gen) {
+    int h = gen->GetArgDWord(0);
+    int v = gen->GetArgDWord(1);
+    setTextAlign(static_cast<Direction>(h), static_cast<Direction>(v));
+}
+static void as_getTextAlignH(asIScriptGeneric* gen) {
+    gen->SetReturnDWord(static_cast<int>(getTextAlignH()));
+}
+static void as_getTextAlignV(asIScriptGeneric* gen) {
+    gen->SetReturnDWord(static_cast<int>(getTextAlignV()));
+}
+static void as_getBitmapFontHeight(asIScriptGeneric* gen) {
+    gen->SetReturnFloat(getBitmapFontHeight());
+}
+static void as_getBitmapStringWidth(asIScriptGeneric* gen) {
+    string* text = static_cast<string*>(gen->GetArgObject(0));
+    gen->SetReturnFloat(getBitmapStringWidth(*text));
+}
+static void as_getBitmapStringHeight(asIScriptGeneric* gen) {
+    string* text = static_cast<string*>(gen->GetArgObject(0));
+    gen->SetReturnFloat(getBitmapStringHeight(*text));
+}
+static void as_getBitmapStringBBox(asIScriptGeneric* gen) {
+    string* text = static_cast<string*>(gen->GetArgObject(0));
+    new (gen->GetAddressOfReturnLocation()) Rect(getBitmapStringBBox(*text));
+}
+
+// Graphics advanced functions
+static void as_drawMesh(asIScriptGeneric* gen) {
+    Mesh* mesh = static_cast<Mesh*>(gen->GetArgObject(0));
+    mesh->draw();
+}
+static void as_drawPolyline(asIScriptGeneric* gen) {
+    Path* path = static_cast<Path*>(gen->GetArgObject(0));
+    path->draw();
+}
+static void as_drawTexture_3f(asIScriptGeneric* gen) {
+    Texture* tex = static_cast<Texture*>(gen->GetArgObject(0));
+    tex->draw(gen->GetArgFloat(1), gen->GetArgFloat(2));
+}
+static void as_drawTexture_5f(asIScriptGeneric* gen) {
+    Texture* tex = static_cast<Texture*>(gen->GetArgObject(0));
+    tex->draw(gen->GetArgFloat(1), gen->GetArgFloat(2), gen->GetArgFloat(3), gen->GetArgFloat(4));
+}
+static void as_createBox_1f(asIScriptGeneric* gen) {
+    g_meshes.push_back(make_unique<Mesh>(createBox(gen->GetArgFloat(0))));
+    gen->SetReturnObject(g_meshes.back().get());
+}
+static void as_createBox_3f(asIScriptGeneric* gen) {
+    g_meshes.push_back(make_unique<Mesh>(createBox(gen->GetArgFloat(0), gen->GetArgFloat(1), gen->GetArgFloat(2))));
+    gen->SetReturnObject(g_meshes.back().get());
+}
+static void as_createSphere_1f(asIScriptGeneric* gen) {
+    g_meshes.push_back(make_unique<Mesh>(createSphere(gen->GetArgFloat(0))));
+    gen->SetReturnObject(g_meshes.back().get());
+}
+static void as_createSphere_2(asIScriptGeneric* gen) {
+    g_meshes.push_back(make_unique<Mesh>(createSphere(gen->GetArgFloat(0), gen->GetArgDWord(1))));
+    gen->SetReturnObject(g_meshes.back().get());
+}
+
+// Vec2 static factory functions
+static void Vec2_FromAngle_1f(asIScriptGeneric* gen) {
+    new (gen->GetAddressOfReturnLocation()) Vec2(Vec2::fromAngle(gen->GetArgFloat(0)));
+}
+static void Vec2_FromAngle_2f(asIScriptGeneric* gen) {
+    new (gen->GetAddressOfReturnLocation()) Vec2(Vec2::fromAngle(gen->GetArgFloat(0), gen->GetArgFloat(1)));
+}
+
+// Color static factory functions
+static void Color_FromHex_1u(asIScriptGeneric* gen) {
+    new (gen->GetAddressOfReturnLocation()) Color(Color::fromHex(gen->GetArgDWord(0)));
+}
+static void Color_FromHex_1u1b(asIScriptGeneric* gen) {
+    new (gen->GetAddressOfReturnLocation()) Color(Color::fromHex(gen->GetArgDWord(0), gen->GetArgByte(1) != 0));
+}
+static void Color_FromBytes_3i(asIScriptGeneric* gen) {
+    new (gen->GetAddressOfReturnLocation()) Color(Color::fromBytes(gen->GetArgDWord(0), gen->GetArgDWord(1), gen->GetArgDWord(2)));
+}
+static void Color_FromBytes_4i(asIScriptGeneric* gen) {
+    new (gen->GetAddressOfReturnLocation()) Color(Color::fromBytes(gen->GetArgDWord(0), gen->GetArgDWord(1), gen->GetArgDWord(2), gen->GetArgDWord(3)));
 }
 
 // =============================================================================
@@ -762,6 +1110,641 @@ static void Fbo_Draw_2f(asIScriptGeneric* gen) {
 static void Fbo_Draw_4f(asIScriptGeneric* gen) {
     Fbo* self = static_cast<Fbo*>(gen->GetObject());
     self->draw(gen->GetArgFloat(0), gen->GetArgFloat(1), gen->GetArgFloat(2), gen->GetArgFloat(3));
+}
+
+// =============================================================================
+// Mesh type for AngelScript (reference type)
+// =============================================================================
+static void Mesh_Factory(asIScriptGeneric* gen) {
+    g_meshes.push_back(make_unique<Mesh>());
+    gen->SetReturnObject(g_meshes.back().get());
+}
+static void Mesh_AddRef(asIScriptGeneric*) { /* no-op */ }
+static void Mesh_Release(asIScriptGeneric*) { /* no-op */ }
+
+static void Mesh_SetMode(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    self->setMode(static_cast<PrimitiveMode>(gen->GetArgDWord(0)));
+    gen->SetReturnObject(self);
+}
+static void Mesh_GetMode(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    gen->SetReturnDWord(static_cast<int>(self->getMode()));
+}
+static void Mesh_AddVertex_3f(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    self->addVertex(gen->GetArgFloat(0), gen->GetArgFloat(1), gen->GetArgFloat(2));
+    gen->SetReturnObject(self);
+}
+static void Mesh_AddVertex_2f(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    self->addVertex(gen->GetArgFloat(0), gen->GetArgFloat(1), 0.0f);
+    gen->SetReturnObject(self);
+}
+static void Mesh_AddVertex_Vec3(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    Vec3* v = static_cast<Vec3*>(gen->GetArgObject(0));
+    self->addVertex(*v);
+    gen->SetReturnObject(self);
+}
+static void Mesh_AddVertex_Vec2(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    Vec2* v = static_cast<Vec2*>(gen->GetArgObject(0));
+    self->addVertex(*v);
+    gen->SetReturnObject(self);
+}
+static void Mesh_AddColor_Color(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    Color* c = static_cast<Color*>(gen->GetArgObject(0));
+    self->addColor(*c);
+    gen->SetReturnObject(self);
+}
+static void Mesh_AddColor_4f(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    self->addColor(gen->GetArgFloat(0), gen->GetArgFloat(1), gen->GetArgFloat(2), gen->GetArgFloat(3));
+    gen->SetReturnObject(self);
+}
+static void Mesh_AddColor_3f(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    self->addColor(gen->GetArgFloat(0), gen->GetArgFloat(1), gen->GetArgFloat(2), 1.0f);
+    gen->SetReturnObject(self);
+}
+static void Mesh_AddTexCoord_2f(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    self->addTexCoord(gen->GetArgFloat(0), gen->GetArgFloat(1));
+    gen->SetReturnObject(self);
+}
+static void Mesh_AddTexCoord_Vec2(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    Vec2* t = static_cast<Vec2*>(gen->GetArgObject(0));
+    self->addTexCoord(*t);
+    gen->SetReturnObject(self);
+}
+static void Mesh_AddNormal_3f(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    self->addNormal(gen->GetArgFloat(0), gen->GetArgFloat(1), gen->GetArgFloat(2));
+    gen->SetReturnObject(self);
+}
+static void Mesh_AddNormal_Vec3(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    Vec3* n = static_cast<Vec3*>(gen->GetArgObject(0));
+    self->addNormal(*n);
+    gen->SetReturnObject(self);
+}
+static void Mesh_AddIndex(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    self->addIndex(gen->GetArgDWord(0));
+    gen->SetReturnObject(self);
+}
+static void Mesh_AddTriangle(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    self->addTriangle(gen->GetArgDWord(0), gen->GetArgDWord(1), gen->GetArgDWord(2));
+    gen->SetReturnObject(self);
+}
+static void Mesh_Clear(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    self->clear();
+    gen->SetReturnObject(self);
+}
+static void Mesh_Draw(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    self->draw();
+}
+static void Mesh_DrawWireframe(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    self->drawWireframe();
+}
+static void Mesh_GetNumVertices(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    gen->SetReturnDWord(self->getNumVertices());
+}
+static void Mesh_GetNumIndices(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    gen->SetReturnDWord(self->getNumIndices());
+}
+static void Mesh_GetNumColors(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    gen->SetReturnDWord(self->getNumColors());
+}
+static void Mesh_GetNumNormals(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    gen->SetReturnDWord(self->getNumNormals());
+}
+static void Mesh_HasColors(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    gen->SetReturnByte(self->hasColors() ? 1 : 0);
+}
+static void Mesh_HasIndices(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    gen->SetReturnByte(self->hasIndices() ? 1 : 0);
+}
+static void Mesh_HasNormals(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    gen->SetReturnByte(self->hasNormals() ? 1 : 0);
+}
+static void Mesh_HasTexCoords(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    gen->SetReturnByte(self->hasTexCoords() ? 1 : 0);
+}
+static void Mesh_Translate_3f(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    self->translate(gen->GetArgFloat(0), gen->GetArgFloat(1), gen->GetArgFloat(2));
+    gen->SetReturnObject(self);
+}
+static void Mesh_Translate_Vec3(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    Vec3* v = static_cast<Vec3*>(gen->GetArgObject(0));
+    self->translate(*v);
+    gen->SetReturnObject(self);
+}
+static void Mesh_RotateX(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    self->rotateX(gen->GetArgFloat(0));
+    gen->SetReturnObject(self);
+}
+static void Mesh_RotateY(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    self->rotateY(gen->GetArgFloat(0));
+    gen->SetReturnObject(self);
+}
+static void Mesh_RotateZ(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    self->rotateZ(gen->GetArgFloat(0));
+    gen->SetReturnObject(self);
+}
+static void Mesh_Scale_1f(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    self->scale(gen->GetArgFloat(0));
+    gen->SetReturnObject(self);
+}
+static void Mesh_Scale_3f(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    self->scale(gen->GetArgFloat(0), gen->GetArgFloat(1), gen->GetArgFloat(2));
+    gen->SetReturnObject(self);
+}
+static void Mesh_AddVertices_Vec3Array(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    CScriptArray* arr = static_cast<CScriptArray*>(gen->GetArgObject(0));
+    for (asUINT i = 0; i < arr->GetSize(); i++) {
+        Vec3* v = static_cast<Vec3*>(arr->At(i));
+        self->addVertex(*v);
+    }
+    gen->SetReturnObject(self);
+}
+static void Mesh_AddVertices_Vec2Array(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    CScriptArray* arr = static_cast<CScriptArray*>(gen->GetArgObject(0));
+    for (asUINT i = 0; i < arr->GetSize(); i++) {
+        Vec2* v = static_cast<Vec2*>(arr->At(i));
+        self->addVertex(v->x, v->y, 0);
+    }
+    gen->SetReturnObject(self);
+}
+static void Mesh_AddColors_Array(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    CScriptArray* arr = static_cast<CScriptArray*>(gen->GetArgObject(0));
+    for (asUINT i = 0; i < arr->GetSize(); i++) {
+        Color* c = static_cast<Color*>(arr->At(i));
+        self->addColor(*c);
+    }
+    gen->SetReturnObject(self);
+}
+static void Mesh_AddIndices_Array(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    CScriptArray* arr = static_cast<CScriptArray*>(gen->GetArgObject(0));
+    for (asUINT i = 0; i < arr->GetSize(); i++) {
+        uint32_t* idx = static_cast<uint32_t*>(arr->At(i));
+        self->addIndex(*idx);
+    }
+    gen->SetReturnObject(self);
+}
+static void Mesh_AddNormals_Array(asIScriptGeneric* gen) {
+    Mesh* self = static_cast<Mesh*>(gen->GetObject());
+    CScriptArray* arr = static_cast<CScriptArray*>(gen->GetArgObject(0));
+    for (asUINT i = 0; i < arr->GetSize(); i++) {
+        Vec3* n = static_cast<Vec3*>(arr->At(i));
+        self->addNormal(*n);
+    }
+    gen->SetReturnObject(self);
+}
+
+// =============================================================================
+// Path (Polyline) type for AngelScript (reference type)
+// =============================================================================
+static void Path_Factory(asIScriptGeneric* gen) {
+    g_paths.push_back(make_unique<Path>());
+    gen->SetReturnObject(g_paths.back().get());
+}
+static void Path_AddRef(asIScriptGeneric*) { /* no-op */ }
+static void Path_Release(asIScriptGeneric*) { /* no-op */ }
+
+static void Path_AddVertex_2f(asIScriptGeneric* gen) {
+    Path* self = static_cast<Path*>(gen->GetObject());
+    self->addVertex(gen->GetArgFloat(0), gen->GetArgFloat(1));
+    gen->SetReturnObject(self);
+}
+static void Path_AddVertex_3f(asIScriptGeneric* gen) {
+    Path* self = static_cast<Path*>(gen->GetObject());
+    self->addVertex(gen->GetArgFloat(0), gen->GetArgFloat(1), gen->GetArgFloat(2));
+    gen->SetReturnObject(self);
+}
+static void Path_AddVertex_Vec2(asIScriptGeneric* gen) {
+    Path* self = static_cast<Path*>(gen->GetObject());
+    Vec2* v = static_cast<Vec2*>(gen->GetArgObject(0));
+    self->addVertex(*v);
+    gen->SetReturnObject(self);
+}
+static void Path_AddVertex_Vec3(asIScriptGeneric* gen) {
+    Path* self = static_cast<Path*>(gen->GetObject());
+    Vec3* v = static_cast<Vec3*>(gen->GetArgObject(0));
+    self->addVertex(*v);
+    gen->SetReturnObject(self);
+}
+static void Path_LineTo_2f(asIScriptGeneric* gen) {
+    Path* self = static_cast<Path*>(gen->GetObject());
+    self->lineTo(gen->GetArgFloat(0), gen->GetArgFloat(1));
+    gen->SetReturnObject(self);
+}
+static void Path_LineTo_Vec2(asIScriptGeneric* gen) {
+    Path* self = static_cast<Path*>(gen->GetObject());
+    Vec2* v = static_cast<Vec2*>(gen->GetArgObject(0));
+    self->lineTo(*v);
+    gen->SetReturnObject(self);
+}
+static void Path_BezierTo_6f(asIScriptGeneric* gen) {
+    Path* self = static_cast<Path*>(gen->GetObject());
+    self->bezierTo(gen->GetArgFloat(0), gen->GetArgFloat(1),
+                   gen->GetArgFloat(2), gen->GetArgFloat(3),
+                   gen->GetArgFloat(4), gen->GetArgFloat(5));
+    gen->SetReturnObject(self);
+}
+static void Path_QuadBezierTo_4f(asIScriptGeneric* gen) {
+    Path* self = static_cast<Path*>(gen->GetObject());
+    self->quadBezierTo(gen->GetArgFloat(0), gen->GetArgFloat(1),
+                       gen->GetArgFloat(2), gen->GetArgFloat(3));
+    gen->SetReturnObject(self);
+}
+static void Path_CurveTo_2f(asIScriptGeneric* gen) {
+    Path* self = static_cast<Path*>(gen->GetObject());
+    self->curveTo(gen->GetArgFloat(0), gen->GetArgFloat(1));
+    gen->SetReturnObject(self);
+}
+static void Path_CurveTo_3f(asIScriptGeneric* gen) {
+    Path* self = static_cast<Path*>(gen->GetObject());
+    self->curveTo(gen->GetArgFloat(0), gen->GetArgFloat(1), gen->GetArgFloat(2));
+    gen->SetReturnObject(self);
+}
+static void Path_Arc_6f(asIScriptGeneric* gen) {
+    Path* self = static_cast<Path*>(gen->GetObject());
+    self->arc(gen->GetArgFloat(0), gen->GetArgFloat(1),
+              gen->GetArgFloat(2), gen->GetArgFloat(3),
+              gen->GetArgFloat(4), gen->GetArgFloat(5));
+    gen->SetReturnObject(self);
+}
+static void Path_Close(asIScriptGeneric* gen) {
+    Path* self = static_cast<Path*>(gen->GetObject());
+    self->close();
+    gen->SetReturnObject(self);
+}
+static void Path_SetClosed(asIScriptGeneric* gen) {
+    Path* self = static_cast<Path*>(gen->GetObject());
+    self->setClosed(gen->GetArgByte(0) != 0);
+    gen->SetReturnObject(self);
+}
+static void Path_IsClosed(asIScriptGeneric* gen) {
+    Path* self = static_cast<Path*>(gen->GetObject());
+    gen->SetReturnByte(self->isClosed() ? 1 : 0);
+}
+static void Path_Clear(asIScriptGeneric* gen) {
+    Path* self = static_cast<Path*>(gen->GetObject());
+    self->clear();
+    gen->SetReturnObject(self);
+}
+static void Path_Draw(asIScriptGeneric* gen) {
+    Path* self = static_cast<Path*>(gen->GetObject());
+    self->draw();
+}
+static void Path_Size(asIScriptGeneric* gen) {
+    Path* self = static_cast<Path*>(gen->GetObject());
+    gen->SetReturnDWord(self->size());
+}
+static void Path_Empty(asIScriptGeneric* gen) {
+    Path* self = static_cast<Path*>(gen->GetObject());
+    gen->SetReturnByte(self->empty() ? 1 : 0);
+}
+static void Path_GetPerimeter(asIScriptGeneric* gen) {
+    Path* self = static_cast<Path*>(gen->GetObject());
+    gen->SetReturnFloat(self->getPerimeter());
+}
+static void Path_GetBounds(asIScriptGeneric* gen) {
+    Path* self = static_cast<Path*>(gen->GetObject());
+    Rect r = self->getBounds();
+    new(gen->GetAddressOfReturnLocation()) Rect(r);
+}
+static void Path_AddVertices_Vec3Array(asIScriptGeneric* gen) {
+    Path* self = static_cast<Path*>(gen->GetObject());
+    CScriptArray* arr = static_cast<CScriptArray*>(gen->GetArgObject(0));
+    for (asUINT i = 0; i < arr->GetSize(); i++) {
+        Vec3* v = static_cast<Vec3*>(arr->At(i));
+        self->addVertex(*v);
+    }
+    gen->SetReturnObject(self);
+}
+static void Path_AddVertices_Vec2Array(asIScriptGeneric* gen) {
+    Path* self = static_cast<Path*>(gen->GetObject());
+    CScriptArray* arr = static_cast<CScriptArray*>(gen->GetArgObject(0));
+    for (asUINT i = 0; i < arr->GetSize(); i++) {
+        Vec2* v = static_cast<Vec2*>(arr->At(i));
+        self->addVertex(*v);
+    }
+    gen->SetReturnObject(self);
+}
+
+// =============================================================================
+// StrokeMesh type for AngelScript (reference type)
+// =============================================================================
+static void StrokeMesh_Factory(asIScriptGeneric* gen) {
+    g_strokeMeshes.push_back(make_unique<StrokeMesh>());
+    gen->SetReturnObject(g_strokeMeshes.back().get());
+}
+static void StrokeMesh_AddRef(asIScriptGeneric*) { /* no-op */ }
+static void StrokeMesh_Release(asIScriptGeneric*) { /* no-op */ }
+
+static void StrokeMesh_SetWidth(asIScriptGeneric* gen) {
+    StrokeMesh* self = static_cast<StrokeMesh*>(gen->GetObject());
+    self->setWidth(gen->GetArgFloat(0));
+    gen->SetReturnObject(self);
+}
+static void StrokeMesh_SetColor(asIScriptGeneric* gen) {
+    StrokeMesh* self = static_cast<StrokeMesh*>(gen->GetObject());
+    Color* c = static_cast<Color*>(gen->GetArgObject(0));
+    self->setColor(*c);
+    gen->SetReturnObject(self);
+}
+static void StrokeMesh_SetCapType(asIScriptGeneric* gen) {
+    StrokeMesh* self = static_cast<StrokeMesh*>(gen->GetObject());
+    int type = gen->GetArgDWord(0);
+    self->setCapType(static_cast<StrokeMesh::CapType>(type));
+    gen->SetReturnObject(self);
+}
+static void StrokeMesh_SetJoinType(asIScriptGeneric* gen) {
+    StrokeMesh* self = static_cast<StrokeMesh*>(gen->GetObject());
+    int type = gen->GetArgDWord(0);
+    self->setJoinType(static_cast<StrokeMesh::JoinType>(type));
+    gen->SetReturnObject(self);
+}
+static void StrokeMesh_SetMiterLimit(asIScriptGeneric* gen) {
+    StrokeMesh* self = static_cast<StrokeMesh*>(gen->GetObject());
+    self->setMiterLimit(gen->GetArgFloat(0));
+    gen->SetReturnObject(self);
+}
+static void StrokeMesh_AddVertex_2f(asIScriptGeneric* gen) {
+    StrokeMesh* self = static_cast<StrokeMesh*>(gen->GetObject());
+    self->addVertex(gen->GetArgFloat(0), gen->GetArgFloat(1));
+    gen->SetReturnObject(self);
+}
+static void StrokeMesh_AddVertex_3f(asIScriptGeneric* gen) {
+    StrokeMesh* self = static_cast<StrokeMesh*>(gen->GetObject());
+    self->addVertex(gen->GetArgFloat(0), gen->GetArgFloat(1), gen->GetArgFloat(2));
+    gen->SetReturnObject(self);
+}
+static void StrokeMesh_AddVertex_Vec2(asIScriptGeneric* gen) {
+    StrokeMesh* self = static_cast<StrokeMesh*>(gen->GetObject());
+    Vec2* v = static_cast<Vec2*>(gen->GetArgObject(0));
+    self->addVertex(*v);
+    gen->SetReturnObject(self);
+}
+static void StrokeMesh_AddVertex_Vec3(asIScriptGeneric* gen) {
+    StrokeMesh* self = static_cast<StrokeMesh*>(gen->GetObject());
+    Vec3* v = static_cast<Vec3*>(gen->GetArgObject(0));
+    self->addVertex(*v);
+    gen->SetReturnObject(self);
+}
+static void StrokeMesh_AddVertexWithWidth_3f(asIScriptGeneric* gen) {
+    StrokeMesh* self = static_cast<StrokeMesh*>(gen->GetObject());
+    self->addVertexWithWidth(gen->GetArgFloat(0), gen->GetArgFloat(1), gen->GetArgFloat(2));
+    gen->SetReturnObject(self);
+}
+static void StrokeMesh_SetShape(asIScriptGeneric* gen) {
+    StrokeMesh* self = static_cast<StrokeMesh*>(gen->GetObject());
+    Path* path = static_cast<Path*>(gen->GetArgObject(0));
+    self->setShape(*path);
+    gen->SetReturnObject(self);
+}
+static void StrokeMesh_SetClosed(asIScriptGeneric* gen) {
+    StrokeMesh* self = static_cast<StrokeMesh*>(gen->GetObject());
+    self->setClosed(gen->GetArgByte(0) != 0);
+    gen->SetReturnObject(self);
+}
+static void StrokeMesh_Clear(asIScriptGeneric* gen) {
+    StrokeMesh* self = static_cast<StrokeMesh*>(gen->GetObject());
+    self->clear();
+    gen->SetReturnObject(self);
+}
+static void StrokeMesh_Update(asIScriptGeneric* gen) {
+    StrokeMesh* self = static_cast<StrokeMesh*>(gen->GetObject());
+    self->update();
+}
+static void StrokeMesh_Draw(asIScriptGeneric* gen) {
+    StrokeMesh* self = static_cast<StrokeMesh*>(gen->GetObject());
+    self->draw();
+}
+
+// =============================================================================
+// Image type for AngelScript (reference type)
+// =============================================================================
+static void Image_Factory(asIScriptGeneric* gen) {
+    g_images.push_back(make_unique<Image>());
+    gen->SetReturnObject(g_images.back().get());
+}
+static void Image_AddRef(asIScriptGeneric*) { /* no-op */ }
+static void Image_Release(asIScriptGeneric*) { /* no-op */ }
+
+static void Image_Load(asIScriptGeneric* gen) {
+    Image* self = static_cast<Image*>(gen->GetObject());
+    string* path = static_cast<string*>(gen->GetArgObject(0));
+    gen->SetReturnByte(self->load(*path) ? 1 : 0);
+}
+static void Image_Save(asIScriptGeneric* gen) {
+    Image* self = static_cast<Image*>(gen->GetObject());
+    string* path = static_cast<string*>(gen->GetArgObject(0));
+    gen->SetReturnByte(self->save(*path) ? 1 : 0);
+}
+static void Image_Allocate_2i(asIScriptGeneric* gen) {
+    Image* self = static_cast<Image*>(gen->GetObject());
+    self->allocate(gen->GetArgDWord(0), gen->GetArgDWord(1));
+}
+static void Image_Allocate_3i(asIScriptGeneric* gen) {
+    Image* self = static_cast<Image*>(gen->GetObject());
+    self->allocate(gen->GetArgDWord(0), gen->GetArgDWord(1), gen->GetArgDWord(2));
+}
+static void Image_Clear(asIScriptGeneric* gen) {
+    Image* self = static_cast<Image*>(gen->GetObject());
+    self->clear();
+}
+static void Image_IsAllocated(asIScriptGeneric* gen) {
+    Image* self = static_cast<Image*>(gen->GetObject());
+    gen->SetReturnByte(self->isAllocated() ? 1 : 0);
+}
+static void Image_GetWidth(asIScriptGeneric* gen) {
+    Image* self = static_cast<Image*>(gen->GetObject());
+    gen->SetReturnDWord(self->getWidth());
+}
+static void Image_GetHeight(asIScriptGeneric* gen) {
+    Image* self = static_cast<Image*>(gen->GetObject());
+    gen->SetReturnDWord(self->getHeight());
+}
+static void Image_GetChannels(asIScriptGeneric* gen) {
+    Image* self = static_cast<Image*>(gen->GetObject());
+    gen->SetReturnDWord(self->getChannels());
+}
+static void Image_GetPixels(asIScriptGeneric* gen) {
+    Image* self = static_cast<Image*>(gen->GetObject());
+    gen->SetReturnObject(&self->getPixels());
+}
+static void Image_GetColor(asIScriptGeneric* gen) {
+    Image* self = static_cast<Image*>(gen->GetObject());
+    Color c = self->getColor(gen->GetArgDWord(0), gen->GetArgDWord(1));
+    new(gen->GetAddressOfReturnLocation()) Color(c);
+}
+static void Image_SetColor(asIScriptGeneric* gen) {
+    Image* self = static_cast<Image*>(gen->GetObject());
+    Color* c = static_cast<Color*>(gen->GetArgObject(2));
+    self->setColor(gen->GetArgDWord(0), gen->GetArgDWord(1), *c);
+}
+static void Image_Update(asIScriptGeneric* gen) {
+    Image* self = static_cast<Image*>(gen->GetObject());
+    self->update();
+}
+static void Image_SetDirty(asIScriptGeneric* gen) {
+    Image* self = static_cast<Image*>(gen->GetObject());
+    self->setDirty();
+}
+static void Image_GetTexture(asIScriptGeneric* gen) {
+    Image* self = static_cast<Image*>(gen->GetObject());
+    gen->SetReturnObject(&self->getTexture());
+}
+static void Image_Draw_0(asIScriptGeneric* gen) {
+    Image* self = static_cast<Image*>(gen->GetObject());
+    self->draw(0, 0);
+}
+static void Image_Draw_2f(asIScriptGeneric* gen) {
+    Image* self = static_cast<Image*>(gen->GetObject());
+    self->draw(gen->GetArgFloat(0), gen->GetArgFloat(1));
+}
+static void Image_Draw_4f(asIScriptGeneric* gen) {
+    Image* self = static_cast<Image*>(gen->GetObject());
+    self->draw(gen->GetArgFloat(0), gen->GetArgFloat(1), gen->GetArgFloat(2), gen->GetArgFloat(3));
+}
+
+// =============================================================================
+// EasyCam type for AngelScript (reference type)
+// =============================================================================
+static void EasyCam_Factory(asIScriptGeneric* gen) {
+    g_easyCams.push_back(make_unique<EasyCam>());
+    gen->SetReturnObject(g_easyCams.back().get());
+}
+static void EasyCam_AddRef(asIScriptGeneric*) { /* no-op */ }
+static void EasyCam_Release(asIScriptGeneric*) { /* no-op */ }
+
+static void EasyCam_Begin(asIScriptGeneric* gen) {
+    EasyCam* self = static_cast<EasyCam*>(gen->GetObject());
+    self->begin();
+}
+static void EasyCam_End(asIScriptGeneric* gen) {
+    EasyCam* self = static_cast<EasyCam*>(gen->GetObject());
+    self->end();
+}
+static void EasyCam_Reset(asIScriptGeneric* gen) {
+    EasyCam* self = static_cast<EasyCam*>(gen->GetObject());
+    self->reset();
+}
+static void EasyCam_SetTarget_3f(asIScriptGeneric* gen) {
+    EasyCam* self = static_cast<EasyCam*>(gen->GetObject());
+    self->setTarget(gen->GetArgFloat(0), gen->GetArgFloat(1), gen->GetArgFloat(2));
+}
+static void EasyCam_SetTarget_Vec3(asIScriptGeneric* gen) {
+    EasyCam* self = static_cast<EasyCam*>(gen->GetObject());
+    Vec3* v = static_cast<Vec3*>(gen->GetArgObject(0));
+    self->setTarget(*v);
+}
+static void EasyCam_GetTarget(asIScriptGeneric* gen) {
+    EasyCam* self = static_cast<EasyCam*>(gen->GetObject());
+    Vec3 t = self->getTarget();
+    new(gen->GetAddressOfReturnLocation()) Vec3(t);
+}
+static void EasyCam_SetDistance(asIScriptGeneric* gen) {
+    EasyCam* self = static_cast<EasyCam*>(gen->GetObject());
+    self->setDistance(gen->GetArgFloat(0));
+}
+static void EasyCam_GetDistance(asIScriptGeneric* gen) {
+    EasyCam* self = static_cast<EasyCam*>(gen->GetObject());
+    gen->SetReturnFloat(self->getDistance());
+}
+static void EasyCam_SetFov(asIScriptGeneric* gen) {
+    EasyCam* self = static_cast<EasyCam*>(gen->GetObject());
+    self->setFov(gen->GetArgFloat(0));
+}
+static void EasyCam_GetFov(asIScriptGeneric* gen) {
+    EasyCam* self = static_cast<EasyCam*>(gen->GetObject());
+    gen->SetReturnFloat(self->getFov());
+}
+static void EasyCam_SetFovDeg(asIScriptGeneric* gen) {
+    EasyCam* self = static_cast<EasyCam*>(gen->GetObject());
+    self->setFovDeg(gen->GetArgFloat(0));
+}
+static void EasyCam_SetNearClip(asIScriptGeneric* gen) {
+    EasyCam* self = static_cast<EasyCam*>(gen->GetObject());
+    self->setNearClip(gen->GetArgFloat(0));
+}
+static void EasyCam_SetFarClip(asIScriptGeneric* gen) {
+    EasyCam* self = static_cast<EasyCam*>(gen->GetObject());
+    self->setFarClip(gen->GetArgFloat(0));
+}
+static void EasyCam_EnableMouseInput(asIScriptGeneric* gen) {
+    EasyCam* self = static_cast<EasyCam*>(gen->GetObject());
+    self->enableMouseInput();
+}
+static void EasyCam_DisableMouseInput(asIScriptGeneric* gen) {
+    EasyCam* self = static_cast<EasyCam*>(gen->GetObject());
+    self->disableMouseInput();
+}
+static void EasyCam_IsMouseInputEnabled(asIScriptGeneric* gen) {
+    EasyCam* self = static_cast<EasyCam*>(gen->GetObject());
+    gen->SetReturnByte(self->isMouseInputEnabled() ? 1 : 0);
+}
+static void EasyCam_MousePressed(asIScriptGeneric* gen) {
+    EasyCam* self = static_cast<EasyCam*>(gen->GetObject());
+    self->mousePressed(gen->GetArgDWord(0), gen->GetArgDWord(1), gen->GetArgDWord(2));
+}
+static void EasyCam_MouseReleased(asIScriptGeneric* gen) {
+    EasyCam* self = static_cast<EasyCam*>(gen->GetObject());
+    self->mouseReleased(gen->GetArgDWord(0), gen->GetArgDWord(1), gen->GetArgDWord(2));
+}
+static void EasyCam_MouseDragged(asIScriptGeneric* gen) {
+    EasyCam* self = static_cast<EasyCam*>(gen->GetObject());
+    self->mouseDragged(gen->GetArgDWord(0), gen->GetArgDWord(1), gen->GetArgDWord(2));
+}
+static void EasyCam_MouseScrolled(asIScriptGeneric* gen) {
+    EasyCam* self = static_cast<EasyCam*>(gen->GetObject());
+    self->mouseScrolled(gen->GetArgFloat(0), gen->GetArgFloat(1));
+}
+static void EasyCam_GetPosition(asIScriptGeneric* gen) {
+    EasyCam* self = static_cast<EasyCam*>(gen->GetObject());
+    Vec3 p = self->getPosition();
+    new(gen->GetAddressOfReturnLocation()) Vec3(p);
+}
+static void EasyCam_SetSensitivity(asIScriptGeneric* gen) {
+    EasyCam* self = static_cast<EasyCam*>(gen->GetObject());
+    self->setSensitivity(gen->GetArgFloat(0));
+}
+static void EasyCam_SetZoomSensitivity(asIScriptGeneric* gen) {
+    EasyCam* self = static_cast<EasyCam*>(gen->GetObject());
+    self->setZoomSensitivity(gen->GetArgFloat(0));
+}
+static void EasyCam_SetPanSensitivity(asIScriptGeneric* gen) {
+    EasyCam* self = static_cast<EasyCam*>(gen->GetObject());
+    self->setPanSensitivity(gen->GetArgFloat(0));
 }
 
 // =============================================================================
@@ -893,6 +1876,139 @@ static void Sound_GetPosition(asIScriptGeneric* gen) {
 static void Sound_GetDuration(asIScriptGeneric* gen) {
     Sound* self = static_cast<Sound*>(gen->GetObject());
     gen->SetReturnFloat(self->getDuration());
+}
+
+// =============================================================================
+// ChipSoundNote type for AngelScript (value type)
+// =============================================================================
+// Wave enum constants
+static const int kWaveSin = static_cast<int>(Wave::Sin);
+static const int kWaveSquare = static_cast<int>(Wave::Square);
+static const int kWaveTriangle = static_cast<int>(Wave::Triangle);
+static const int kWaveSawtooth = static_cast<int>(Wave::Sawtooth);
+static const int kWaveNoise = static_cast<int>(Wave::Noise);
+static const int kWavePinkNoise = static_cast<int>(Wave::PinkNoise);
+static const int kWaveSilent = static_cast<int>(Wave::Silent);
+
+static void ChipNote_Construct(asIScriptGeneric* gen) {
+    ChipSoundNote* note = new(gen->GetObject()) ChipSoundNote();
+    note->wave = Wave::Square;
+    note->hz = 440.0f;
+    note->volume = 0.5f;
+    note->duration = 0.2f;
+}
+static void ChipNote_Construct_4(asIScriptGeneric* gen) {
+    int w = gen->GetArgDWord(0);
+    float hz = gen->GetArgFloat(1);
+    float dur = gen->GetArgFloat(2);
+    float vol = gen->GetArgFloat(3);
+    new(gen->GetObject()) ChipSoundNote(static_cast<Wave>(w), hz, dur, vol);
+}
+static void ChipNote_CopyConstruct(asIScriptGeneric* gen) {
+    ChipSoundNote* other = static_cast<ChipSoundNote*>(gen->GetArgObject(0));
+    new(gen->GetObject()) ChipSoundNote(*other);
+}
+static void ChipNote_Destruct(asIScriptGeneric* gen) {
+    static_cast<ChipSoundNote*>(gen->GetObject())->~ChipSoundNote();
+}
+static void ChipNote_Build(asIScriptGeneric* gen) {
+    ChipSoundNote* self = static_cast<ChipSoundNote*>(gen->GetObject());
+    g_sounds.push_back(make_unique<Sound>(self->build()));
+    gen->SetReturnObject(g_sounds.back().get());
+}
+static void ChipNote_SetWave(asIScriptGeneric* gen) {
+    ChipSoundNote* self = static_cast<ChipSoundNote*>(gen->GetObject());
+    self->wave = static_cast<Wave>(gen->GetArgDWord(0));
+    gen->SetReturnObject(self);
+}
+static void ChipNote_SetHz(asIScriptGeneric* gen) {
+    ChipSoundNote* self = static_cast<ChipSoundNote*>(gen->GetObject());
+    self->hz = gen->GetArgFloat(0);
+    gen->SetReturnObject(self);
+}
+static void ChipNote_SetVolume(asIScriptGeneric* gen) {
+    ChipSoundNote* self = static_cast<ChipSoundNote*>(gen->GetObject());
+    self->volume = gen->GetArgFloat(0);
+    gen->SetReturnObject(self);
+}
+static void ChipNote_SetDuration(asIScriptGeneric* gen) {
+    ChipSoundNote* self = static_cast<ChipSoundNote*>(gen->GetObject());
+    self->duration = gen->GetArgFloat(0);
+    gen->SetReturnObject(self);
+}
+static void ChipNote_SetAttack(asIScriptGeneric* gen) {
+    ChipSoundNote* self = static_cast<ChipSoundNote*>(gen->GetObject());
+    self->attack = gen->GetArgFloat(0);
+    gen->SetReturnObject(self);
+}
+static void ChipNote_SetDecay(asIScriptGeneric* gen) {
+    ChipSoundNote* self = static_cast<ChipSoundNote*>(gen->GetObject());
+    self->decay = gen->GetArgFloat(0);
+    gen->SetReturnObject(self);
+}
+static void ChipNote_SetSustain(asIScriptGeneric* gen) {
+    ChipSoundNote* self = static_cast<ChipSoundNote*>(gen->GetObject());
+    self->sustain = gen->GetArgFloat(0);
+    gen->SetReturnObject(self);
+}
+static void ChipNote_SetRelease(asIScriptGeneric* gen) {
+    ChipSoundNote* self = static_cast<ChipSoundNote*>(gen->GetObject());
+    self->release = gen->GetArgFloat(0);
+    gen->SetReturnObject(self);
+}
+static void ChipNote_SetADSR(asIScriptGeneric* gen) {
+    ChipSoundNote* self = static_cast<ChipSoundNote*>(gen->GetObject());
+    self->attack = gen->GetArgFloat(0);
+    self->decay = gen->GetArgFloat(1);
+    self->sustain = gen->GetArgFloat(2);
+    self->release = gen->GetArgFloat(3);
+    gen->SetReturnObject(self);
+}
+
+// =============================================================================
+// ChipSoundBundle type for AngelScript (reference type)
+// =============================================================================
+static void ChipBundle_Factory(asIScriptGeneric* gen) {
+    g_chipBundles.push_back(make_unique<ChipSoundBundle>());
+    gen->SetReturnObject(g_chipBundles.back().get());
+}
+static void ChipBundle_AddRef(asIScriptGeneric*) { /* no-op */ }
+static void ChipBundle_Release(asIScriptGeneric*) { /* no-op */ }
+
+static void ChipBundle_Add(asIScriptGeneric* gen) {
+    ChipSoundBundle* self = static_cast<ChipSoundBundle*>(gen->GetObject());
+    ChipSoundNote* note = static_cast<ChipSoundNote*>(gen->GetArgObject(0));
+    float time = gen->GetArgFloat(1);
+    self->add(*note, time);
+    gen->SetReturnObject(self);
+}
+static void ChipBundle_Add_5(asIScriptGeneric* gen) {
+    ChipSoundBundle* self = static_cast<ChipSoundBundle*>(gen->GetObject());
+    int w = gen->GetArgDWord(0);
+    float hz = gen->GetArgFloat(1);
+    float dur = gen->GetArgFloat(2);
+    float time = gen->GetArgFloat(3);
+    float vol = gen->GetArgFloat(4);
+    self->add(static_cast<Wave>(w), hz, dur, time, vol);
+    gen->SetReturnObject(self);
+}
+static void ChipBundle_Clear(asIScriptGeneric* gen) {
+    ChipSoundBundle* self = static_cast<ChipSoundBundle*>(gen->GetObject());
+    self->clear();
+}
+static void ChipBundle_GetDuration(asIScriptGeneric* gen) {
+    ChipSoundBundle* self = static_cast<ChipSoundBundle*>(gen->GetObject());
+    gen->SetReturnFloat(self->getDuration());
+}
+static void ChipBundle_SetVolume(asIScriptGeneric* gen) {
+    ChipSoundBundle* self = static_cast<ChipSoundBundle*>(gen->GetObject());
+    self->volume = gen->GetArgFloat(0);
+    gen->SetReturnObject(self);
+}
+static void ChipBundle_Build(asIScriptGeneric* gen) {
+    ChipSoundBundle* self = static_cast<ChipSoundBundle*>(gen->GetObject());
+    g_sounds.push_back(make_unique<Sound>(self->build()));
+    gen->SetReturnObject(g_sounds.back().get());
 }
 
 // =============================================================================
@@ -1115,6 +2231,13 @@ void tcScriptHost::registerTrussCFunctions() {
     r = engine_->RegisterObjectMethod("Vec2", "Vec2 opNeg() const", asFUNCTION(Vec2_OpNeg), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterGlobalFunction("Vec2 Vec2_fromAngle(float)", asFUNCTION(Vec2_fromAngle_1f), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterGlobalFunction("Vec2 Vec2_fromAngle(float, float)", asFUNCTION(Vec2_fromAngle_2f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Vec2", "Vec2& limit(float)", asFUNCTION(Vec2_Limit), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Vec2", "float cross(const Vec2 &in) const", asFUNCTION(Vec2_Cross), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Vec2", "float distanceSquared(const Vec2 &in) const", asFUNCTION(Vec2_DistanceSquared), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Vec2", "Vec2 lerp(const Vec2 &in, float) const", asFUNCTION(Vec2_Lerp), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Vec2", "Vec2 perpendicular() const", asFUNCTION(Vec2_Perpendicular), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Vec2", "Vec2 reflected(const Vec2 &in) const", asFUNCTION(Vec2_Reflected), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Vec2", "float angle(const Vec2 &in) const", asFUNCTION(Vec2_AngleWith), asCALL_GENERIC); assert(r >= 0);
 
     // Vec3
     r = engine_->RegisterObjectType("Vec3", sizeof(Vec3), asOBJ_VALUE | asOBJ_POD | asGetTypeTraits<Vec3>()); assert(r >= 0);
@@ -1137,6 +2260,12 @@ void tcScriptHost::registerTrussCFunctions() {
     r = engine_->RegisterObjectMethod("Vec3", "Vec3 opMul(float) const", asFUNCTION(Vec3_OpMulScalar), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterObjectMethod("Vec3", "Vec3 opDiv(float) const", asFUNCTION(Vec3_OpDivScalar), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterObjectMethod("Vec3", "Vec3 opNeg() const", asFUNCTION(Vec3_OpNeg), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Vec3", "Vec3& limit(float)", asFUNCTION(Vec3_Limit), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Vec3", "float distance(const Vec3 &in) const", asFUNCTION(Vec3_Distance), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Vec3", "float distanceSquared(const Vec3 &in) const", asFUNCTION(Vec3_DistanceSquared), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Vec3", "Vec3 lerp(const Vec3 &in, float) const", asFUNCTION(Vec3_Lerp), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Vec3", "Vec3 reflected(const Vec3 &in) const", asFUNCTION(Vec3_Reflected), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Vec3", "Vec2 xy() const", asFUNCTION(Vec3_XY), asCALL_GENERIC); assert(r >= 0);
 
     // Color
     r = engine_->RegisterObjectType("Color", sizeof(Color), asOBJ_VALUE | asOBJ_POD | asGetTypeTraits<Color>()); assert(r >= 0);
@@ -1152,6 +2281,10 @@ void tcScriptHost::registerTrussCFunctions() {
     r = engine_->RegisterObjectMethod("Color", "Color& set(float, float, float)", asFUNCTION(Color_Set_3f), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterObjectMethod("Color", "Color& set(float, float, float, float)", asFUNCTION(Color_Set_4f), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterObjectMethod("Color", "Color lerp(const Color &in, float) const", asFUNCTION(Color_Lerp), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Color", "uint toHex() const", asFUNCTION(Color_ToHex_0), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Color", "uint toHex(bool) const", asFUNCTION(Color_ToHex_1b), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Color", "Color lerpRGB(const Color &in, float) const", asFUNCTION(Color_LerpRGB), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Color", "Color clamped() const", asFUNCTION(Color_Clamped), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterGlobalFunction("Color Color_fromHSB(float, float, float)", asFUNCTION(Color_fromHSB_3f), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterGlobalFunction("Color Color_fromHSB(float, float, float, float)", asFUNCTION(Color_fromHSB_4f), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterGlobalFunction("Color colorFromHSB(float, float, float)", asFUNCTION(Color_fromHSB_3f), asCALL_GENERIC); assert(r >= 0);
@@ -1175,6 +2308,52 @@ void tcScriptHost::registerTrussCFunctions() {
     r = engine_->RegisterObjectMethod("Rect", "bool intersects(const Rect &in) const", asFUNCTION(Rect_Intersects), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterObjectMethod("Rect", "float getCenterX() const", asFUNCTION(Rect_GetCenterX), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterObjectMethod("Rect", "float getCenterY() const", asFUNCTION(Rect_GetCenterY), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Rect", "float getRight() const", asFUNCTION(Rect_GetRight), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Rect", "float getBottom() const", asFUNCTION(Rect_GetBottom), asCALL_GENERIC); assert(r >= 0);
+
+    // Mat4 (4x4 matrix for 3D transformations)
+    r = engine_->RegisterObjectType("Mat4", sizeof(Mat4), asOBJ_VALUE | asOBJ_POD | asGetTypeTraits<Mat4>()); assert(r >= 0);
+    r = engine_->RegisterObjectBehaviour("Mat4", asBEHAVE_CONSTRUCT, "void f()", asFUNCTION(Mat4_Construct), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectBehaviour("Mat4", asBEHAVE_CONSTRUCT, "void f(const Mat4 &in)", asFUNCTION(Mat4_CopyConstruct), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mat4", "Mat4 opMul(const Mat4 &in) const", asFUNCTION(Mat4_OpMul_Mat4), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mat4", "Vec3 opMul(const Vec3 &in) const", asFUNCTION(Mat4_OpMul_Vec3), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mat4", "Mat4 transposed() const", asFUNCTION(Mat4_Transposed), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mat4", "Mat4 inverted() const", asFUNCTION(Mat4_Inverted), asCALL_GENERIC); assert(r >= 0);
+    // Mat4 static factory functions
+    r = engine_->RegisterGlobalFunction("Mat4 Mat4_identity()", asFUNCTION(Mat4_Identity), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("Mat4 Mat4_translate(float, float, float)", asFUNCTION(Mat4_Translate_3f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("Mat4 Mat4_translate(const Vec3 &in)", asFUNCTION(Mat4_Translate_Vec3), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("Mat4 Mat4_rotateX(float)", asFUNCTION(Mat4_RotateX), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("Mat4 Mat4_rotateY(float)", asFUNCTION(Mat4_RotateY), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("Mat4 Mat4_rotateZ(float)", asFUNCTION(Mat4_RotateZ), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("Mat4 Mat4_scale(float)", asFUNCTION(Mat4_Scale_1f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("Mat4 Mat4_scale(float, float, float)", asFUNCTION(Mat4_Scale_3f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("Mat4 Mat4_lookAt(const Vec3 &in, const Vec3 &in, const Vec3 &in)", asFUNCTION(Mat4_LookAt), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("Mat4 Mat4_ortho(float, float, float, float, float, float)", asFUNCTION(Mat4_Ortho), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("Mat4 Mat4_perspective(float, float, float, float)", asFUNCTION(Mat4_Perspective), asCALL_GENERIC); assert(r >= 0);
+
+    // Quaternion (unit quaternion for 3D rotations)
+    r = engine_->RegisterObjectType("Quaternion", sizeof(Quaternion), asOBJ_VALUE | asOBJ_POD | asGetTypeTraits<Quaternion>()); assert(r >= 0);
+    r = engine_->RegisterObjectProperty("Quaternion", "float w", offsetof(Quaternion, w)); assert(r >= 0);
+    r = engine_->RegisterObjectProperty("Quaternion", "float x", offsetof(Quaternion, x)); assert(r >= 0);
+    r = engine_->RegisterObjectProperty("Quaternion", "float y", offsetof(Quaternion, y)); assert(r >= 0);
+    r = engine_->RegisterObjectProperty("Quaternion", "float z", offsetof(Quaternion, z)); assert(r >= 0);
+    r = engine_->RegisterObjectBehaviour("Quaternion", asBEHAVE_CONSTRUCT, "void f()", asFUNCTION(Quaternion_Construct), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectBehaviour("Quaternion", asBEHAVE_CONSTRUCT, "void f(float, float, float, float)", asFUNCTION(Quaternion_Construct_4f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectBehaviour("Quaternion", asBEHAVE_CONSTRUCT, "void f(const Quaternion &in)", asFUNCTION(Quaternion_CopyConstruct), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Quaternion", "Quaternion opMul(const Quaternion &in) const", asFUNCTION(Quaternion_OpMul), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Quaternion", "Vec3 rotate(const Vec3 &in) const", asFUNCTION(Quaternion_Rotate), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Quaternion", "Vec3 toEuler() const", asFUNCTION(Quaternion_ToEuler), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Quaternion", "Mat4 toMatrix() const", asFUNCTION(Quaternion_ToMatrix), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Quaternion", "Quaternion normalized() const", asFUNCTION(Quaternion_Normalized), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Quaternion", "float length() const", asFUNCTION(Quaternion_Length), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Quaternion", "Quaternion conjugate() const", asFUNCTION(Quaternion_Conjugate), asCALL_GENERIC); assert(r >= 0);
+    // Quaternion static factory functions
+    r = engine_->RegisterGlobalFunction("Quaternion Quaternion_identity()", asFUNCTION(Quaternion_Identity), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("Quaternion Quaternion_fromAxisAngle(const Vec3 &in, float)", asFUNCTION(Quaternion_FromAxisAngle), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("Quaternion Quaternion_fromEuler(float, float, float)", asFUNCTION(Quaternion_FromEuler_3f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("Quaternion Quaternion_fromEuler(const Vec3 &in)", asFUNCTION(Quaternion_FromEuler_Vec3), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("Quaternion Quaternion_slerp(const Quaternion &in, const Quaternion &in, float)", asFUNCTION(Quaternion_Slerp), asCALL_GENERIC); assert(r >= 0);
 
     // =========================================================================
     // Reference types: Pixels, Texture, Fbo, Sound
@@ -1187,6 +2366,34 @@ void tcScriptHost::registerTrussCFunctions() {
     r = engine_->RegisterObjectType("Fbo", 0, asOBJ_REF | asOBJ_NOCOUNT); assert(r >= 0);
     r = engine_->RegisterObjectType("Sound", 0, asOBJ_REF | asOBJ_NOCOUNT); assert(r >= 0);
     r = engine_->RegisterObjectType("Font", 0, asOBJ_REF | asOBJ_NOCOUNT); assert(r >= 0);
+    r = engine_->RegisterObjectType("Mesh", 0, asOBJ_REF | asOBJ_NOCOUNT); assert(r >= 0);
+    r = engine_->RegisterObjectType("Path", 0, asOBJ_REF | asOBJ_NOCOUNT); assert(r >= 0);
+    r = engine_->RegisterObjectType("StrokeMesh", 0, asOBJ_REF | asOBJ_NOCOUNT); assert(r >= 0);
+    r = engine_->RegisterObjectType("Image", 0, asOBJ_REF | asOBJ_NOCOUNT); assert(r >= 0);
+    r = engine_->RegisterObjectType("EasyCam", 0, asOBJ_REF | asOBJ_NOCOUNT); assert(r >= 0);
+
+    // PrimitiveMode enum for Mesh
+    r = engine_->RegisterEnum("PrimitiveMode"); assert(r >= 0);
+    r = engine_->RegisterEnumValue("PrimitiveMode", "Triangles", static_cast<int>(PrimitiveMode::Triangles)); assert(r >= 0);
+    r = engine_->RegisterEnumValue("PrimitiveMode", "TriangleStrip", static_cast<int>(PrimitiveMode::TriangleStrip)); assert(r >= 0);
+    r = engine_->RegisterEnumValue("PrimitiveMode", "TriangleFan", static_cast<int>(PrimitiveMode::TriangleFan)); assert(r >= 0);
+    r = engine_->RegisterEnumValue("PrimitiveMode", "Lines", static_cast<int>(PrimitiveMode::Lines)); assert(r >= 0);
+    r = engine_->RegisterEnumValue("PrimitiveMode", "LineStrip", static_cast<int>(PrimitiveMode::LineStrip)); assert(r >= 0);
+    r = engine_->RegisterEnumValue("PrimitiveMode", "LineLoop", static_cast<int>(PrimitiveMode::LineLoop)); assert(r >= 0);
+    r = engine_->RegisterEnumValue("PrimitiveMode", "Points", static_cast<int>(PrimitiveMode::Points)); assert(r >= 0);
+
+    // Wave enum for ChipSound
+    r = engine_->RegisterEnum("Wave"); assert(r >= 0);
+
+    // ChipSoundNote value type
+    r = engine_->RegisterObjectType("ChipSoundNote", sizeof(ChipSoundNote), asOBJ_VALUE | asOBJ_POD | asGetTypeTraits<ChipSoundNote>()); assert(r >= 0);
+    r = engine_->RegisterObjectBehaviour("ChipSoundNote", asBEHAVE_CONSTRUCT, "void f()", asFUNCTION(ChipNote_Construct), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectBehaviour("ChipSoundNote", asBEHAVE_CONSTRUCT, "void f(Wave, float, float, float)", asFUNCTION(ChipNote_Construct_4), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectBehaviour("ChipSoundNote", asBEHAVE_CONSTRUCT, "void f(const ChipSoundNote &in)", asFUNCTION(ChipNote_CopyConstruct), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectBehaviour("ChipSoundNote", asBEHAVE_DESTRUCT, "void f()", asFUNCTION(ChipNote_Destruct), asCALL_GENERIC); assert(r >= 0);
+
+    // ChipSoundBundle reference type
+    r = engine_->RegisterObjectType("ChipSoundBundle", 0, asOBJ_REF | asOBJ_NOCOUNT); assert(r >= 0);
 
     // Pixels methods
     r = engine_->RegisterGlobalFunction("Pixels@ createPixels()", asFUNCTION(Pixels_Factory), asCALL_GENERIC); assert(r >= 0);
@@ -1226,6 +2433,138 @@ void tcScriptHost::registerTrussCFunctions() {
     r = engine_->RegisterObjectMethod("Fbo", "void draw(float, float)", asFUNCTION(Fbo_Draw_2f), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterObjectMethod("Fbo", "void draw(float, float, float, float)", asFUNCTION(Fbo_Draw_4f), asCALL_GENERIC); assert(r >= 0);
 
+    // Mesh methods
+    r = engine_->RegisterGlobalFunction("Mesh@ createMesh()", asFUNCTION(Mesh_Factory), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "Mesh@ setMode(PrimitiveMode)", asFUNCTION(Mesh_SetMode), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "int getMode() const", asFUNCTION(Mesh_GetMode), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "Mesh@ addVertex(float, float, float)", asFUNCTION(Mesh_AddVertex_3f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "Mesh@ addVertex(float, float)", asFUNCTION(Mesh_AddVertex_2f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "Mesh@ addVertex(const Vec3 &in)", asFUNCTION(Mesh_AddVertex_Vec3), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "Mesh@ addVertex(const Vec2 &in)", asFUNCTION(Mesh_AddVertex_Vec2), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "Mesh@ addColor(const Color &in)", asFUNCTION(Mesh_AddColor_Color), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "Mesh@ addColor(float, float, float, float)", asFUNCTION(Mesh_AddColor_4f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "Mesh@ addColor(float, float, float)", asFUNCTION(Mesh_AddColor_3f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "Mesh@ addTexCoord(float, float)", asFUNCTION(Mesh_AddTexCoord_2f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "Mesh@ addTexCoord(const Vec2 &in)", asFUNCTION(Mesh_AddTexCoord_Vec2), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "Mesh@ addNormal(float, float, float)", asFUNCTION(Mesh_AddNormal_3f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "Mesh@ addNormal(const Vec3 &in)", asFUNCTION(Mesh_AddNormal_Vec3), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "Mesh@ addIndex(uint)", asFUNCTION(Mesh_AddIndex), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "Mesh@ addTriangle(uint, uint, uint)", asFUNCTION(Mesh_AddTriangle), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "Mesh@ clear()", asFUNCTION(Mesh_Clear), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "void draw()", asFUNCTION(Mesh_Draw), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "void drawWireframe()", asFUNCTION(Mesh_DrawWireframe), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "int getNumVertices() const", asFUNCTION(Mesh_GetNumVertices), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "int getNumIndices() const", asFUNCTION(Mesh_GetNumIndices), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "int getNumColors() const", asFUNCTION(Mesh_GetNumColors), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "int getNumNormals() const", asFUNCTION(Mesh_GetNumNormals), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "bool hasColors() const", asFUNCTION(Mesh_HasColors), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "bool hasIndices() const", asFUNCTION(Mesh_HasIndices), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "bool hasNormals() const", asFUNCTION(Mesh_HasNormals), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "bool hasTexCoords() const", asFUNCTION(Mesh_HasTexCoords), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "Mesh@ translate(float, float, float)", asFUNCTION(Mesh_Translate_3f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "Mesh@ translate(const Vec3 &in)", asFUNCTION(Mesh_Translate_Vec3), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "Mesh@ rotateX(float)", asFUNCTION(Mesh_RotateX), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "Mesh@ rotateY(float)", asFUNCTION(Mesh_RotateY), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "Mesh@ rotateZ(float)", asFUNCTION(Mesh_RotateZ), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "Mesh@ scale(float)", asFUNCTION(Mesh_Scale_1f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "Mesh@ scale(float, float, float)", asFUNCTION(Mesh_Scale_3f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "Mesh@ addVertices(array<Vec3>@)", asFUNCTION(Mesh_AddVertices_Vec3Array), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "Mesh@ addVertices(array<Vec2>@)", asFUNCTION(Mesh_AddVertices_Vec2Array), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "Mesh@ addColors(array<Color>@)", asFUNCTION(Mesh_AddColors_Array), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "Mesh@ addIndices(array<uint>@)", asFUNCTION(Mesh_AddIndices_Array), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Mesh", "Mesh@ addNormals(array<Vec3>@)", asFUNCTION(Mesh_AddNormals_Array), asCALL_GENERIC); assert(r >= 0);
+
+    // Path (Polyline) methods
+    r = engine_->RegisterGlobalFunction("Path@ createPath()", asFUNCTION(Path_Factory), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Path", "Path@ addVertex(float, float)", asFUNCTION(Path_AddVertex_2f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Path", "Path@ addVertex(float, float, float)", asFUNCTION(Path_AddVertex_3f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Path", "Path@ addVertex(const Vec2 &in)", asFUNCTION(Path_AddVertex_Vec2), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Path", "Path@ addVertex(const Vec3 &in)", asFUNCTION(Path_AddVertex_Vec3), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Path", "Path@ addVertices(array<Vec3>@)", asFUNCTION(Path_AddVertices_Vec3Array), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Path", "Path@ addVertices(array<Vec2>@)", asFUNCTION(Path_AddVertices_Vec2Array), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Path", "Path@ lineTo(float, float)", asFUNCTION(Path_LineTo_2f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Path", "Path@ lineTo(const Vec2 &in)", asFUNCTION(Path_LineTo_Vec2), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Path", "Path@ bezierTo(float, float, float, float, float, float)", asFUNCTION(Path_BezierTo_6f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Path", "Path@ quadBezierTo(float, float, float, float)", asFUNCTION(Path_QuadBezierTo_4f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Path", "Path@ curveTo(float, float)", asFUNCTION(Path_CurveTo_2f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Path", "Path@ curveTo(float, float, float)", asFUNCTION(Path_CurveTo_3f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Path", "Path@ arc(float, float, float, float, float, float)", asFUNCTION(Path_Arc_6f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Path", "Path@ close()", asFUNCTION(Path_Close), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Path", "Path@ setClosed(bool)", asFUNCTION(Path_SetClosed), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Path", "bool isClosed() const", asFUNCTION(Path_IsClosed), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Path", "Path@ clear()", asFUNCTION(Path_Clear), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Path", "void draw()", asFUNCTION(Path_Draw), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Path", "int size() const", asFUNCTION(Path_Size), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Path", "bool empty() const", asFUNCTION(Path_Empty), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Path", "float getPerimeter() const", asFUNCTION(Path_GetPerimeter), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Path", "Rect getBounds() const", asFUNCTION(Path_GetBounds), asCALL_GENERIC); assert(r >= 0);
+
+    // StrokeMesh methods
+    r = engine_->RegisterGlobalFunction("StrokeMesh@ createStrokeMesh()", asFUNCTION(StrokeMesh_Factory), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("StrokeMesh", "StrokeMesh& setWidth(float)", asFUNCTION(StrokeMesh_SetWidth), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("StrokeMesh", "StrokeMesh& setColor(const Color &in)", asFUNCTION(StrokeMesh_SetColor), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("StrokeMesh", "StrokeMesh& setCapType(int)", asFUNCTION(StrokeMesh_SetCapType), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("StrokeMesh", "StrokeMesh& setJoinType(int)", asFUNCTION(StrokeMesh_SetJoinType), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("StrokeMesh", "StrokeMesh& setMiterLimit(float)", asFUNCTION(StrokeMesh_SetMiterLimit), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("StrokeMesh", "StrokeMesh& addVertex(float, float)", asFUNCTION(StrokeMesh_AddVertex_2f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("StrokeMesh", "StrokeMesh& addVertex(float, float, float)", asFUNCTION(StrokeMesh_AddVertex_3f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("StrokeMesh", "StrokeMesh& addVertex(const Vec2 &in)", asFUNCTION(StrokeMesh_AddVertex_Vec2), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("StrokeMesh", "StrokeMesh& addVertex(const Vec3 &in)", asFUNCTION(StrokeMesh_AddVertex_Vec3), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("StrokeMesh", "StrokeMesh& addVertexWithWidth(float, float, float)", asFUNCTION(StrokeMesh_AddVertexWithWidth_3f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("StrokeMesh", "StrokeMesh& setShape(Path@)", asFUNCTION(StrokeMesh_SetShape), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("StrokeMesh", "StrokeMesh& setClosed(bool)", asFUNCTION(StrokeMesh_SetClosed), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("StrokeMesh", "StrokeMesh& clear()", asFUNCTION(StrokeMesh_Clear), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("StrokeMesh", "void update()", asFUNCTION(StrokeMesh_Update), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("StrokeMesh", "void draw()", asFUNCTION(StrokeMesh_Draw), asCALL_GENERIC); assert(r >= 0);
+
+    // Image methods
+    r = engine_->RegisterGlobalFunction("Image@ createImage()", asFUNCTION(Image_Factory), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Image", "bool load(const string &in)", asFUNCTION(Image_Load), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Image", "bool save(const string &in)", asFUNCTION(Image_Save), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Image", "void allocate(int, int)", asFUNCTION(Image_Allocate_2i), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Image", "void allocate(int, int, int)", asFUNCTION(Image_Allocate_3i), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Image", "void clear()", asFUNCTION(Image_Clear), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Image", "bool isAllocated() const", asFUNCTION(Image_IsAllocated), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Image", "int getWidth() const", asFUNCTION(Image_GetWidth), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Image", "int getHeight() const", asFUNCTION(Image_GetHeight), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Image", "int getChannels() const", asFUNCTION(Image_GetChannels), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Image", "Pixels@ getPixels()", asFUNCTION(Image_GetPixels), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Image", "Color getColor(int, int) const", asFUNCTION(Image_GetColor), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Image", "void setColor(int, int, const Color &in)", asFUNCTION(Image_SetColor), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Image", "void update()", asFUNCTION(Image_Update), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Image", "void setDirty()", asFUNCTION(Image_SetDirty), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Image", "Texture@ getTexture()", asFUNCTION(Image_GetTexture), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Image", "void draw()", asFUNCTION(Image_Draw_0), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Image", "void draw(float, float)", asFUNCTION(Image_Draw_2f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("Image", "void draw(float, float, float, float)", asFUNCTION(Image_Draw_4f), asCALL_GENERIC); assert(r >= 0);
+
+    // EasyCam methods
+    r = engine_->RegisterGlobalFunction("EasyCam@ createEasyCam()", asFUNCTION(EasyCam_Factory), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("EasyCam", "void begin()", asFUNCTION(EasyCam_Begin), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("EasyCam", "void end()", asFUNCTION(EasyCam_End), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("EasyCam", "void reset()", asFUNCTION(EasyCam_Reset), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("EasyCam", "void setTarget(float, float, float)", asFUNCTION(EasyCam_SetTarget_3f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("EasyCam", "void setTarget(const Vec3 &in)", asFUNCTION(EasyCam_SetTarget_Vec3), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("EasyCam", "Vec3 getTarget() const", asFUNCTION(EasyCam_GetTarget), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("EasyCam", "void setDistance(float)", asFUNCTION(EasyCam_SetDistance), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("EasyCam", "float getDistance() const", asFUNCTION(EasyCam_GetDistance), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("EasyCam", "void setFov(float)", asFUNCTION(EasyCam_SetFov), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("EasyCam", "float getFov() const", asFUNCTION(EasyCam_GetFov), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("EasyCam", "void setFovDeg(float)", asFUNCTION(EasyCam_SetFovDeg), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("EasyCam", "void setNearClip(float)", asFUNCTION(EasyCam_SetNearClip), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("EasyCam", "void setFarClip(float)", asFUNCTION(EasyCam_SetFarClip), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("EasyCam", "void enableMouseInput()", asFUNCTION(EasyCam_EnableMouseInput), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("EasyCam", "void disableMouseInput()", asFUNCTION(EasyCam_DisableMouseInput), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("EasyCam", "bool isMouseInputEnabled() const", asFUNCTION(EasyCam_IsMouseInputEnabled), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("EasyCam", "void mousePressed(int, int, int)", asFUNCTION(EasyCam_MousePressed), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("EasyCam", "void mouseReleased(int, int, int)", asFUNCTION(EasyCam_MouseReleased), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("EasyCam", "void mouseDragged(int, int, int)", asFUNCTION(EasyCam_MouseDragged), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("EasyCam", "void mouseScrolled(float, float)", asFUNCTION(EasyCam_MouseScrolled), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("EasyCam", "Vec3 getPosition() const", asFUNCTION(EasyCam_GetPosition), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("EasyCam", "void setSensitivity(float)", asFUNCTION(EasyCam_SetSensitivity), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("EasyCam", "void setZoomSensitivity(float)", asFUNCTION(EasyCam_SetZoomSensitivity), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("EasyCam", "void setPanSensitivity(float)", asFUNCTION(EasyCam_SetPanSensitivity), asCALL_GENERIC); assert(r >= 0);
+
     // Sound methods
     r = engine_->RegisterGlobalFunction("Sound@ createSound()", asFUNCTION(Sound_Factory), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterObjectMethod("Sound", "bool load(const string &in)", asFUNCTION(Sound_Load), asCALL_GENERIC); assert(r >= 0);
@@ -1245,6 +2584,36 @@ void tcScriptHost::registerTrussCFunctions() {
     r = engine_->RegisterObjectMethod("Sound", "bool isPaused() const", asFUNCTION(Sound_IsPaused), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterObjectMethod("Sound", "float getPosition() const", asFUNCTION(Sound_GetPosition), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterObjectMethod("Sound", "float getDuration() const", asFUNCTION(Sound_GetDuration), asCALL_GENERIC); assert(r >= 0);
+
+    // Wave enum constants
+    r = engine_->RegisterEnumValue("Wave", "Sin", kWaveSin); assert(r >= 0);
+    r = engine_->RegisterEnumValue("Wave", "Square", kWaveSquare); assert(r >= 0);
+    r = engine_->RegisterEnumValue("Wave", "Triangle", kWaveTriangle); assert(r >= 0);
+    r = engine_->RegisterEnumValue("Wave", "Sawtooth", kWaveSawtooth); assert(r >= 0);
+    r = engine_->RegisterEnumValue("Wave", "Noise", kWaveNoise); assert(r >= 0);
+    r = engine_->RegisterEnumValue("Wave", "PinkNoise", kWavePinkNoise); assert(r >= 0);
+    r = engine_->RegisterEnumValue("Wave", "Silent", kWaveSilent); assert(r >= 0);
+
+    // ChipSoundNote methods (value type with chaining)
+    r = engine_->RegisterObjectMethod("ChipSoundNote", "Sound@ build()", asFUNCTION(ChipNote_Build), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("ChipSoundNote", "ChipSoundNote& wave(Wave)", asFUNCTION(ChipNote_SetWave), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("ChipSoundNote", "ChipSoundNote& hz(float)", asFUNCTION(ChipNote_SetHz), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("ChipSoundNote", "ChipSoundNote& volume(float)", asFUNCTION(ChipNote_SetVolume), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("ChipSoundNote", "ChipSoundNote& duration(float)", asFUNCTION(ChipNote_SetDuration), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("ChipSoundNote", "ChipSoundNote& attack(float)", asFUNCTION(ChipNote_SetAttack), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("ChipSoundNote", "ChipSoundNote& decay(float)", asFUNCTION(ChipNote_SetDecay), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("ChipSoundNote", "ChipSoundNote& sustain(float)", asFUNCTION(ChipNote_SetSustain), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("ChipSoundNote", "ChipSoundNote& release(float)", asFUNCTION(ChipNote_SetRelease), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("ChipSoundNote", "ChipSoundNote& adsr(float, float, float, float)", asFUNCTION(ChipNote_SetADSR), asCALL_GENERIC); assert(r >= 0);
+
+    // ChipSoundBundle methods (reference type)
+    r = engine_->RegisterGlobalFunction("ChipSoundBundle@ createChipBundle()", asFUNCTION(ChipBundle_Factory), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("ChipSoundBundle", "ChipSoundBundle& add(const ChipSoundNote &in, float)", asFUNCTION(ChipBundle_Add), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("ChipSoundBundle", "ChipSoundBundle& add(Wave, float, float, float, float)", asFUNCTION(ChipBundle_Add_5), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("ChipSoundBundle", "void clear()", asFUNCTION(ChipBundle_Clear), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("ChipSoundBundle", "float getDuration() const", asFUNCTION(ChipBundle_GetDuration), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("ChipSoundBundle", "ChipSoundBundle& volume(float)", asFUNCTION(ChipBundle_SetVolume), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterObjectMethod("ChipSoundBundle", "Sound@ build()", asFUNCTION(ChipBundle_Build), asCALL_GENERIC); assert(r >= 0);
 
     // Font methods
     r = engine_->RegisterGlobalFunction("Font@ createFont()", asFUNCTION(Font_Factory), asCALL_GENERIC); assert(r >= 0);
@@ -1437,6 +2806,51 @@ void tcScriptHost::registerTrussCFunctions() {
     r = engine_->RegisterGlobalFunction("string getClipboardString()", asFUNCTION(as_getClipboardString), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterGlobalFunction("void setWindowTitle(const string &in)", asFUNCTION(as_setWindowTitle), asCALL_GENERIC); assert(r >= 0);
     r = engine_->RegisterGlobalFunction("void setWindowSize(int, int)", asFUNCTION(as_setWindowSize), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("Vec2 getWindowSize()", asFUNCTION(as_getWindowSize), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("Vec2 getMousePos()", asFUNCTION(as_getMousePos), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("Vec2 getGlobalMousePos()", asFUNCTION(as_getGlobalMousePos), asCALL_GENERIC); assert(r >= 0);
+
+    // Transform matrix
+    r = engine_->RegisterGlobalFunction("Mat4 getCurrentMatrix()", asFUNCTION(as_getCurrentMatrix), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("void setMatrix(const Mat4 &in)", asFUNCTION(as_setMatrix), asCALL_GENERIC); assert(r >= 0);
+
+    // Direction enum for text alignment
+    r = engine_->RegisterEnum("Direction"); assert(r >= 0);
+    r = engine_->RegisterEnumValue("Direction", "Left", 0); assert(r >= 0);
+    r = engine_->RegisterEnumValue("Direction", "Center", 1); assert(r >= 0);
+    r = engine_->RegisterEnumValue("Direction", "Right", 2); assert(r >= 0);
+    r = engine_->RegisterEnumValue("Direction", "Top", 3); assert(r >= 0);
+    r = engine_->RegisterEnumValue("Direction", "Bottom", 4); assert(r >= 0);
+    r = engine_->RegisterEnumValue("Direction", "Baseline", 5); assert(r >= 0);
+
+    // Text alignment
+    r = engine_->RegisterGlobalFunction("void setTextAlign(Direction, Direction)", asFUNCTION(as_setTextAlign), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("Direction getTextAlignH()", asFUNCTION(as_getTextAlignH), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("Direction getTextAlignV()", asFUNCTION(as_getTextAlignV), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("float getBitmapFontHeight()", asFUNCTION(as_getBitmapFontHeight), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("float getBitmapStringWidth(const string &in)", asFUNCTION(as_getBitmapStringWidth), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("float getBitmapStringHeight(const string &in)", asFUNCTION(as_getBitmapStringHeight), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("Rect getBitmapStringBBox(const string &in)", asFUNCTION(as_getBitmapStringBBox), asCALL_GENERIC); assert(r >= 0);
+
+    // Graphics advanced
+    r = engine_->RegisterGlobalFunction("void drawMesh(Mesh@)", asFUNCTION(as_drawMesh), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("void drawPolyline(Path@)", asFUNCTION(as_drawPolyline), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("void drawTexture(Texture@, float, float)", asFUNCTION(as_drawTexture_3f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("void drawTexture(Texture@, float, float, float, float)", asFUNCTION(as_drawTexture_5f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("Mesh@ createBox(float)", asFUNCTION(as_createBox_1f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("Mesh@ createBox(float, float, float)", asFUNCTION(as_createBox_3f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("Mesh@ createSphere(float)", asFUNCTION(as_createSphere_1f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("Mesh@ createSphere(float, int)", asFUNCTION(as_createSphere_2), asCALL_GENERIC); assert(r >= 0);
+
+    // Vec2 static factory functions
+    r = engine_->RegisterGlobalFunction("Vec2 Vec2_fromAngle(float)", asFUNCTION(Vec2_FromAngle_1f), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("Vec2 Vec2_fromAngle(float, float)", asFUNCTION(Vec2_FromAngle_2f), asCALL_GENERIC); assert(r >= 0);
+
+    // Color static factory functions
+    r = engine_->RegisterGlobalFunction("Color Color_fromHex(uint)", asFUNCTION(Color_FromHex_1u), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("Color Color_fromHex(uint, bool)", asFUNCTION(Color_FromHex_1u1b), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("Color Color_fromBytes(int, int, int)", asFUNCTION(Color_FromBytes_3i), asCALL_GENERIC); assert(r >= 0);
+    r = engine_->RegisterGlobalFunction("Color Color_fromBytes(int, int, int, int)", asFUNCTION(Color_FromBytes_4i), asCALL_GENERIC); assert(r >= 0);
 
     // =========================================================================
     // Utility

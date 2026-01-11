@@ -23,6 +23,15 @@
       "name": "macos"
     },
     {
+      "binaryDir": "${sourceDir}/xcode",
+      "cacheVariables": {
+        "TRUSSC_DIR": "/Users/toru/Nextcloud/Make/TrussC/TrussC/trussc"
+      },
+      "displayName": "Xcode",
+      "generator": "Xcode",
+      "name": "xcode"
+    },
+    {
       "binaryDir": "${sourceDir}/build-web",
       "cacheVariables": {
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
@@ -31,7 +40,7 @@
       "displayName": "Web (Emscripten)",
       "generator": "Unix Makefiles",
       "name": "web",
-      "toolchainFile": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake"
+      "toolchainFile": "/opt/homebrew/Cellar/emscripten/4.0.22/libexec/cmake/Modules/Platform/Emscripten.cmake"
     }
   ],
   "version": 6
